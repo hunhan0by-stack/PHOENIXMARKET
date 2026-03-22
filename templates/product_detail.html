@@ -23,7 +23,7 @@
               <img src="{{ url_for('static', filename=img_path) }}" alt="{{ product.name }}" class="h-full w-full object-cover">
             {% endif %}
           {% else %}
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="{{ product.name }}" class="h-full w-full object-cover">
+            <div class="flex h-full w-full min-h-[14rem] items-center justify-center bg-slate-800/90 px-4 text-center text-sm text-slate-500">{{ t('listing_no_image') }}</div>
           {% endif %}
         </div>
         <p class="mt-2 text-sm text-slate-300">

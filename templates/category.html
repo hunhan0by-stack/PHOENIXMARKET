@@ -34,8 +34,8 @@
                 {% else %}
                   <img src="{{ url_for('static', filename=img_path) }}" alt="{{ product.name }}" class="h-full w-full object-cover">
                 {% endif %}
-              {% else %}
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="{{ product.name }}" class="h-full w-full object-cover">
+                {% else %}
+                <div class="flex h-full w-full items-center justify-center bg-slate-800/90 px-2 text-center text-[10px] font-medium uppercase tracking-wider text-slate-500">{{ t('listing_no_image') }}</div>
               {% endif %}
             </div>
             <h3 class="text-sm font-semibold text-slate-50">{{ product.name }}</h3>

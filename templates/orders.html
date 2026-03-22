@@ -19,11 +19,15 @@
           <div>
             <span class="text-sm font-semibold text-slate-100">Order #{{ order.id }}</span>
             <span class="text-xs text-slate-500 ml-2">{{ order.created_at.strftime('%Y-%m-%d %H:%M') if order.created_at else '—' }}</span>
+            <span class="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-brandOrange capitalize">{{ order.fulfillment_status }}</span>
           </div>
-          <span class="text-sm font-semibold text-brandOrange">{{ "%.2f"|format(order.total_price) }} $</span>
+          <div class="flex flex-col items-end gap-1">
+            <span class="text-sm font-semibold text-brandOrange">{{ "%.2f"|format(order.total_price) }} $</span>
+            <a href="{{ url_for('track_order', token=order.tracking_token) }}" class="text-[10px] text-brandOrange hover:text-amber-200">{{ t('track_order_cta') }}</a>
+          </div>
         </div>
         <ul class="divide-y divide-slate-800">
-          {% for item in order.items %}
+          {% for item in order.line_items %}
           <li class="px-4 py-2 flex justify-between items-center text-xs">
             <span class="text-slate-200">{{ item.product_name }}</span>
             <span class="text-slate-400">{{ item.quantity }} × {{ "%.2f"|format(item.price) }} $</span>

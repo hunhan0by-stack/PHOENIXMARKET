@@ -1,6 +1,6 @@
-import json
 import os
-import threading
+import secrets
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,9 +18,11 @@ from flask import (
 from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 
 from services.currency import convert, format_price
+from services.database import init_app as register_db, init_schema
 from services.listing import (
     get_display_price,
     format_product_price,
@@ -28,6 +30,8 @@ from services.listing import (
     get_base_price,
     get_base_currency,
 )
+import services.store as store
+from services.store import slugify
 from services.translations import t as translate
 
 load_dotenv()
@@ -65,255 +69,60 @@ UPLOAD_FOLDER = app_root / "static" / "uploads"
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "phoenixmarket")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+# Admin credentials: required in production (Render or FLASK_ENV=production); dev defaults otherwise.
+_IS_PRODUCTION = bool(os.getenv("RENDER") or os.getenv("FLASK_ENV") == "production")
+if _IS_PRODUCTION:
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+    if not ADMIN_USERNAME or not ADMIN_PASSWORD:
+        raise RuntimeError(
+            "ADMIN_USERNAME and ADMIN_PASSWORD environment variables are required in production. "
+            "Set them in Render (or use FLASK_ENV=production locally only with real secrets)."
+        )
+else:
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "phoenixmarket")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 # -----------------------------------------------------------------------------
-# Visitor analytics – JSON file storage (admin-only)
+# Data directory & SQLite
 # -----------------------------------------------------------------------------
 DATA_DIR = app_root / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
-ANALYTICS_FILE = DATA_DIR / "analytics.json"
-ANALYTICS_MAX_ENTRIES = 10000
-_analytics_lock = threading.Lock()
+app.config["DATABASE_PATH"] = os.getenv("DATABASE_PATH", str(DATA_DIR / "phoenixmarket.db"))
 
+register_db(app)
+with app.app_context():
+    init_schema()
+    store.seed_if_empty(itemsatis_url)
+    store.migrate_listing_images_png_to_jpg()
+    store.maybe_migrate_analytics_json(DATA_DIR)
+    _persisted = store.load_site_settings(
+        itemsatis_url,
+        "contact@phoenixmarket.example",
+        "YourDiscordTag#0000",
+    )
+    if _persisted.get("itemsatis_redirect_url"):
+        app.config["ITEMSATIS_REDIRECT_URL"] = _persisted["itemsatis_redirect_url"]
 
-def _load_visits():
-    """Load visit records from JSON file."""
-    if not ANALYTICS_FILE.exists():
-        return []
-    try:
-        with open(ANALYTICS_FILE, encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, list) else []
-    except (json.JSONDecodeError, OSError):
-        return []
+if os.getenv("RENDER"):
+    app.config["SESSION_COOKIE_SECURE"] = True
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
-
-def _save_visits(visits):
-    """Persist visit records (keep last N entries)."""
-    if len(visits) > ANALYTICS_MAX_ENTRIES:
-        visits = visits[-ANALYTICS_MAX_ENTRIES:]
-    try:
-        with _analytics_lock:
-            with open(ANALYTICS_FILE, "w", encoding="utf-8") as f:
-                json.dump(visits, f, indent=0)
-    except OSError:
-        pass
-
-
-def _record_visit(path, ip, user_agent):
-    """Append one visit and persist."""
-    visits = _load_visits()
-    visits.append({
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "path": path or "/",
-        "ip": ip or "unknown",
-        "user_agent": (user_agent or "")[:500],
-    })
-    _save_visits(visits)
-
-
-def _user_agent_summary(ua):
-    """Short summary of user agent for display."""
-    if not ua or ua == "unknown":
-        return "—"
-    ua = ua[:80]
-    if "Chrome" in ua and "Edg" not in ua:
-        return "Chrome"
-    if "Firefox" in ua:
-        return "Firefox"
-    if "Safari" in ua and "Chrome" not in ua:
-        return "Safari"
-    if "Edg" in ua:
-        return "Edge"
-    return ua.split("/")[0] if "/" in ua else ua[:20]
-
-
-def get_analytics_for_admin():
-    """Return summary and recent visits for admin dashboard."""
-    visits = _load_visits()
-    total_visits = len(visits)
-    unique_ips = set(v.get("ip") or "unknown" for v in visits)
-    total_visitors = len(unique_ips)
-
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    today_visits = sum(1 for v in visits if v.get("ts") and v["ts"].startswith(today_start.strftime("%Y-%m-%d")))
-
-    # Recent visits (last 100), newest first
-    recent = list(reversed(visits[-100:]))
-    recent_with_summary = [
-        {
-            "ts": v.get("ts", ""),
-            "path": v.get("path", "/"),
-            "ip": v.get("ip", "—"),
-            "user_agent_summary": _user_agent_summary(v.get("user_agent")),
-        }
-        for v in recent
-    ]
-
-    # Top pages by hit count
-    path_counts = {}
-    for v in visits:
-        p = (v.get("path") or "/").strip() or "/"
-        path_counts[p] = path_counts.get(p, 0) + 1
-    top_pages = sorted(path_counts.items(), key=lambda x: -x[1])[:15]
-
-    return {
-        "total_visits": total_visits,
-        "total_visitors": total_visitors,
-        "today_visits": today_visits,
-        "recent_visits": recent_with_summary,
-        "top_pages": top_pages,
-    }
-
-
-# -----------------------------------------------------------------------------
-# In-memory data (acts as a simple data layer for now)
-# -----------------------------------------------------------------------------
-PRODUCTS = [
-    {
-        "id": 1,
-        "name": "Canva Pro Subscription",
-        "base_price": 9.99,
-        "base_currency": "USD",
-        "listing_language": "en",
-        "description": "Premium Canva Pro access with templates and collaboration tools.",
-        "category": "Design",
-        "image": "/static/images/canva.png",
-        "stock": 100,
-        "status": "active",
-        "owner": "admin",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    },
-    {
-        "id": 2,
-        "name": "Instagram Followers",
-        "base_price": 14.99,
-        "base_currency": "USD",
-        "listing_language": "en",
-        "description": "Boost your Instagram presence with targeted follower packages.",
-        "category": "Social Media",
-        "image": "/static/images/instagram.png",
-        "stock": 200,
-        "status": "active",
-        "owner": "admin",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    },
-    {
-        "id": 3,
-        "name": "TikTok Views",
-        "base_price": 12.99,
-        "base_currency": "USD",
-        "listing_language": "en",
-        "description": "Increase your TikTok views for better reach and engagement.",
-        "category": "Social Media",
-        "image": "/static/images/tiktok.png",
-        "stock": 150,
-        "status": "active",
-        "owner": "admin",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    },
-    {
-        "id": 4,
-        "name": "ChatGPT Accounts",
-        "base_price": 19.99,
-        "base_currency": "USD",
-        "listing_language": "en",
-        "description": "Reliable ChatGPT access for research, coding and content.",
-        "category": "AI",
-        "image": "/static/images/chatgpt.png",
-        "stock": 80,
-        "status": "active",
-        "owner": "admin",
-        "created_at": datetime.now(timezone.utc),
-        "updated_at": datetime.now(timezone.utc),
-    },
-]
-
-# Simple in-memory order storage for checkout-ready flow
-ORDERS = []
-
-# In-memory category storage; seeded from existing products
-def slugify(value: str) -> str:
-    """Generate a simple, SEO‑friendly slug."""
-    import re
-
-    value = (value or "").strip().lower()
-    value = re.sub(r"[^a-z0-9]+", "-", value)
-    value = re.sub(r"-{2,}", "-", value).strip("-")
-    return value or "item"
-
-
-# Seed products with SEO‑friendly slugs
-for p in PRODUCTS:
-    if "slug" not in p or not p["slug"]:
-        p["slug"] = slugify(p["name"])
-
-
-CATEGORIES = []
-for p in PRODUCTS:
-    name = p.get("category")
-    if not name:
-        continue
-    if not any(c["name"] == name for c in CATEGORIES):
-        base_slug = slugify(name)
-        slug = base_slug
-        existing_slugs = {c["slug"] for c in CATEGORIES}
-        counter = 2
-        while slug in existing_slugs:
-            slug = f"{base_slug}-{counter}"
-            counter += 1
-        CATEGORIES.append(
-            {
-                "id": len(CATEGORIES) + 1,
-                "name": name,
-                "slug": slug,
-                "parent_id": None,
-                "created_at": datetime.now(timezone.utc),
-            }
-        )
-
-
-# In-memory editable site content (lightweight CMS)
-SITE_CONTENT = {
-    "hero_badge": "Fast & reliable digital services",
-    "hero_title": "PHOENIXMARKET",
-    "hero_subtitle": (
-        "A modern marketplace for digital services like Canva Pro subscriptions, "
-        "Instagram followers, TikTok views, and ChatGPT accounts. "
-        "Affordable pricing, fast delivery, and trusted support."
-    ),
-    "hero_cta_label": "Browse services",
-    "checkout_helper_text": (
-        "To complete this purchase you will be redirected to our official marketplace listing on itemsatis."
-    ),
-    "checkout_button_label": "Continue to secure purchase",
-    "footer_contact_text": "contact@phoenixmarket.example",
-    "footer_discord_text": "YourDiscordTag#0000",
-}
-
-
-SITE_SETTINGS = {
-    "itemsatis_redirect_url": app.config["ITEMSATIS_REDIRECT_URL"],
-    "support_email": "contact@phoenixmarket.example",
-    "support_discord": "YourDiscordTag#0000",
-}
+ORDER_STATUS_CHOICES = ("pending", "processing", "completed", "cancelled")
 
 
 def get_product(product_id):
-    return next((p for p in PRODUCTS if p["id"] == product_id), None)
+    return store.get_product(product_id)
 
 
 def get_product_by_slug(slug: str):
-    return next((p for p in PRODUCTS if p.get("slug") == slug), None)
+    return store.get_product_by_slug(slug)
 
 
 def get_category_by_slug(slug: str):
-    return next((c for c in CATEGORIES if c.get("slug") == slug), None)
+    return store.get_category_by_slug(slug)
 
 
 def get_cart():
@@ -435,10 +244,15 @@ def inject_globals():
     def t(key):
         return translate(key, locale)
 
+    site_settings = store.load_site_settings(
+        app.config.get("ITEMSATIS_REDIRECT_URL", ""),
+        "contact@phoenixmarket.example",
+        "YourDiscordTag#0000",
+    )
     return {
         "cart_count": cart_count,
-        "site_content": SITE_CONTENT,
-        "site_settings": SITE_SETTINGS,
+        "site_content": store.load_site_content(),
+        "site_settings": site_settings,
         "locale": locale,
         "currency": currency,
         "t": t,
@@ -460,14 +274,14 @@ def record_visit():
     ip = request.remote_addr or (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip() or "unknown"
     ua = request.user_agent.string if request.user_agent else ""
     try:
-        _record_visit(path, ip, ua)
+        store.record_visit(path, ip, ua)
     except Exception:  # noqa: S110
         pass
 
 
 def get_public_products():
     """Return products that are visible in the public marketplace."""
-    return [p for p in PRODUCTS if p.get("status") == "active"]
+    return store.list_public_products()
 
 
 def is_admin():
@@ -512,7 +326,7 @@ def sitemap():
     """Generate sitemap for SEO."""
     base_url = request.url_root.rstrip("/")
     pages = [("/", "daily", "1.0"), ("/products", "daily", "0.9"), ("/contact", "monthly", "0.5")]
-    for c in CATEGORIES:
+    for c in store.list_categories():
         pages.append((f"/category/{c['slug']}", "weekly", "0.8"))
     for p in get_public_products():
         slug = p.get("slug") or str(p["id"])
@@ -542,7 +356,7 @@ def index():
         "index.html",
         products=products,
         featured_products=featured,
-        categories=CATEGORIES,
+        categories=store.list_categories(),
     )
 
 
@@ -639,6 +453,7 @@ def signup():
 def signout():
     session.pop("user", None)
     session.pop("admin", None)
+    session.pop("is_admin", None)
     flash("Signed out.", "success")
     return redirect(url_for("index"))
 
@@ -647,6 +462,9 @@ def signout():
 def admin_logout():
     session.pop("is_admin", None)
     session.pop("admin", None)
+    u = session.get("user") or {}
+    if u.get("role") == "admin":
+        session.pop("user", None)
     flash("Admin logged out.", "success")
     return redirect(url_for("index"))
 
@@ -668,7 +486,7 @@ def account():
     if not user:
         return redirect(url_for("signin"))
     user_email = (user.get("email") or "").strip().lower()
-    order_count = sum(1 for o in ORDERS if (o.get("user_email") or "").strip().lower() == user_email)
+    order_count = store.count_orders_for_email(user_email)
     return render_template("account.html", user=user, order_count=order_count)
 
 
@@ -679,15 +497,7 @@ def account_orders():
     if not user:
         return redirect(url_for("signin"))
     user_email = (user.get("email") or "").strip().lower()
-    user_orders = [
-        o for o in reversed(ORDERS)
-        if (o.get("user_email") or "").strip().lower() == user_email
-    ]
-    # Enrich order items with product names
-    for order in user_orders:
-        for item in order.get("items", []):
-            p = get_product(item.get("product_id"))
-            item["product_name"] = p["name"] if p else "Unknown product"
+    user_orders = store.list_orders_for_email(user_email)
     return render_template("orders.html", orders=user_orders)
 
 
@@ -751,6 +561,7 @@ def checkout():
     if request.method == "POST":
         full_name = request.form.get("full_name", "").strip()
         email = request.form.get("email", "").strip()
+        notes = request.form.get("notes", "").strip()
 
         if not full_name or not email:
             flash("Full name and email are required to place an order.", "error")
@@ -758,53 +569,81 @@ def checkout():
                 "checkout.html", items=items, subtotal=subtotal_display
             )
 
-        order_id = len(ORDERS) + 1
-        now = datetime.now(timezone.utc)
-        order_items = [
-            {
-                "product_id": item["product"]["id"],
-                "quantity": item["qty"],
-                "price": convert(
-                    get_base_price(item["product"]),
-                    get_base_currency(item["product"]),
-                    "USD",
-                ),
-            }
-            for item in items
-        ]
-        ORDERS.append(
-            {
-                "id": order_id,
-                "user_email": email,
-                "full_name": full_name,
-                "total_price": subtotal_base,
-                "total_currency": "USD",
-                "items": order_items,
-                "created_at": now,
-            }
+        tracking_token = str(uuid.uuid4())
+        line_items = []
+        for item in items:
+            p = item["product"]
+            line_items.append(
+                {
+                    "product_id": p["id"],
+                    "product_name": p["name"],
+                    "quantity": item["qty"],
+                    "unit_price_usd": convert(
+                        get_base_price(p),
+                        get_base_currency(p),
+                        "USD",
+                    ),
+                }
+            )
+        order_id = store.create_order(
+            tracking_token=tracking_token,
+            user_email=email,
+            full_name=full_name,
+            notes=notes,
+            total_price=subtotal_base,
+            total_currency="USD",
+            line_items=line_items,
         )
         session["cart"] = {}
         session["last_order_id"] = order_id
-        flash(
-            "Order created successfully. You are being redirected to our official itemsatis listing to complete payment.",
-            "success",
-        )
-        return redirect(app.config["ITEMSATIS_REDIRECT_URL"])
+        session["last_tracking_token"] = tracking_token
+        return redirect(url_for("order_confirmation", token=tracking_token))
 
     return render_template(
         "checkout.html", items=items, subtotal=subtotal_display
     )
 
 
+@app.route("/checkout/complete/<token>")
+def order_confirmation(token):
+    """Post-checkout page: tracking link and redirect to external payment."""
+    order = store.get_order_by_tracking_token(token, include_items=True)
+    if not order:
+        abort(404)
+    return render_template(
+        "order_confirmation.html",
+        order=order,
+        itemsatis_url=app.config["ITEMSATIS_REDIRECT_URL"],
+    )
+
+
+@app.route("/track/<token>")
+def track_order(token):
+    """Public order status by secret tracking token (from confirmation email / page)."""
+    order = store.get_order_by_tracking_token(token, include_items=True)
+    if not order:
+        flash("We could not find an order for this link.", "error")
+        return redirect(url_for("index"))
+    return render_template("track_order.html", order=order)
+
+
 # -----------------------------------------------------------------------------
-# Admin (mock)
+# Admin
 # -----------------------------------------------------------------------------
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if request.method == "POST":
         username = request.form.get("username", "")
         password = request.form.get("password", "")
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        u_ok = secrets.compare_digest(
+            (username or "").encode("utf-8"),
+            (ADMIN_USERNAME or "").encode("utf-8"),
+        )
+        p_ok = secrets.compare_digest(
+            (password or "").encode("utf-8"),
+            (ADMIN_PASSWORD or "").encode("utf-8"),
+        )
+        if u_ok and p_ok:
             # Single-owner admin; mark admin flags in session
             session["is_admin"] = True
             session["admin"] = True
@@ -820,19 +659,20 @@ def admin_dashboard():
     guard = require_admin()
     if guard:
         return guard
-    total_products = len(PRODUCTS)
-    active_products = len([p for p in PRODUCTS if p.get("status") == "active"])
+    all_products = store.list_all_products()
+    total_products = len(all_products)
+    active_products = len([p for p in all_products if p.get("status") == "active"])
     inactive_products = total_products - active_products
-    total_orders = len(ORDERS)
-    analytics = get_analytics_for_admin()
+    total_orders = store.count_orders()
+    analytics = store.get_analytics_for_admin()
     return render_template(
         "admin_dashboard.html",
-        products=PRODUCTS,
+        products=all_products,
         total_products=total_products,
         active_products=active_products,
         inactive_products=inactive_products,
         total_orders=total_orders,
-        categories=CATEGORIES,
+        categories=store.list_categories(),
         analytics=analytics,
     )
 
@@ -848,7 +688,7 @@ def admin_listings():
     category = (request.args.get("category") or "").strip().lower()
     lang = (request.args.get("lang") or "").strip().lower()
 
-    filtered = PRODUCTS
+    filtered = store.list_all_products()
     if q:
         filtered = [
             p
@@ -875,7 +715,9 @@ def admin_listings():
             if (p.get("listing_language") or "en").lower() == lang
         ]
 
-    categories = sorted({p.get("category", "") for p in PRODUCTS if p.get("category")})
+    categories = sorted(
+        {p.get("category", "") for p in store.list_all_products() if p.get("category")}
+    )
 
     return render_template(
         "admin_listings.html",
@@ -893,7 +735,9 @@ def admin_categories():
     guard = require_admin()
     if guard:
         return guard
-    return render_template("admin_categories.html", categories=CATEGORIES)
+    return render_template(
+        "admin_categories.html", categories=store.list_categories()
+    )
 
 
 @app.route("/admin/create-category", methods=["POST"])
@@ -905,25 +749,18 @@ def admin_create_category():
     if not name:
         flash("Category name is required.", "error")
         return redirect(url_for("admin_categories"))
-    if any(c["name"].lower() == name.lower() for c in CATEGORIES):
+    cats = store.list_categories()
+    if any(c["name"].lower() == name.lower() for c in cats):
         flash("A category with this name already exists.", "error")
         return redirect(url_for("admin_categories"))
     base_slug = slugify(name)
     slug = base_slug
-    existing_slugs = {c["slug"] for c in CATEGORIES}
+    existing_slugs = store.category_slugs_excluding()
     counter = 2
     while slug in existing_slugs:
         slug = f"{base_slug}-{counter}"
         counter += 1
-    CATEGORIES.append(
-        {
-            "id": len(CATEGORIES) + 1,
-            "name": name,
-            "slug": slug,
-            "parent_id": None,
-            "created_at": datetime.now(timezone.utc),
-        }
-    )
+    store.create_category(name, slug, None)
     flash("Category created.", "success")
     return redirect(url_for("admin_categories"))
 
@@ -933,11 +770,11 @@ def admin_delete_category(category_id):
     guard = require_admin()
     if guard:
         return guard
-    category = next((c for c in CATEGORIES if c["id"] == category_id), None)
+    category = store.get_category(category_id)
     if not category:
         flash("Category not found.", "error")
         return redirect(url_for("admin_categories"))
-    CATEGORIES.remove(category)
+    store.delete_category(category_id)
     flash("Category deleted.", "info")
     return redirect(url_for("admin_categories"))
 
@@ -948,10 +785,12 @@ def admin_edit_category(category_id):
     guard = require_admin()
     if guard:
         return guard
-    category = next((c for c in CATEGORIES if c["id"] == category_id), None)
+    category = store.get_category(category_id)
     if not category:
         flash("Category not found.", "error")
         return redirect(url_for("admin_categories"))
+
+    all_cats = store.list_categories()
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
@@ -961,7 +800,7 @@ def admin_edit_category(category_id):
             return redirect(url_for("admin_edit_category", category_id=category_id))
         if any(
             c["name"].lower() == name.lower() and c["id"] != category_id
-            for c in CATEGORIES
+            for c in all_cats
         ):
             flash("Another category with this name already exists.", "error")
             return redirect(url_for("admin_edit_category", category_id=category_id))
@@ -972,28 +811,25 @@ def admin_edit_category(category_id):
                 parent_id_val = int(parent_id_raw)
             except ValueError:
                 parent_id_val = None
-            if parent_id_val and any(c["id"] == parent_id_val for c in CATEGORIES):
+            if parent_id_val and any(c["id"] == parent_id_val for c in all_cats):
                 parent_id = parent_id_val
-
-        category["name"] = name
-        category["parent_id"] = parent_id
 
         base_slug = slugify(name)
         slug = base_slug
-        existing_slugs = {c["slug"] for c in CATEGORIES if c["id"] != category_id}
+        existing_slugs = store.category_slugs_excluding(category_id)
         counter = 2
         while slug in existing_slugs:
             slug = f"{base_slug}-{counter}"
             counter += 1
-        category["slug"] = slug
 
+        store.update_category(category_id, name, slug, parent_id)
         flash("Category updated.", "success")
         return redirect(url_for("admin_categories"))
 
     return render_template(
         "admin_category_edit.html",
         category=category,
-        categories=CATEGORIES,
+        categories=all_cats,
     )
 
 
@@ -1003,18 +839,12 @@ def admin_content():
     if guard:
         return guard
     if request.method == "POST":
-        for key in [
-            "hero_badge",
-            "hero_title",
-            "hero_subtitle",
-            "hero_cta_label",
-            "checkout_helper_text",
-            "checkout_button_label",
-            "footer_contact_text",
-            "footer_discord_text",
-        ]:
+        updates = {}
+        for key in store.SITE_CONTENT_KEYS:
             if key in request.form:
-                SITE_CONTENT[key] = request.form.get(key, "").strip()
+                updates[key] = request.form.get(key, "").strip()
+        if updates:
+            store.save_site_content(updates)
         flash("Content updated.", "success")
         return redirect(url_for("admin_content"))
     return render_template("admin_content.html")
@@ -1030,11 +860,18 @@ def admin_settings():
         support_email = (request.form.get("support_email") or "").strip()
         support_discord = (request.form.get("support_discord") or "").strip()
 
-        if itemsatis_url:
-            SITE_SETTINGS["itemsatis_redirect_url"] = itemsatis_url
-            app.config["ITEMSATIS_REDIRECT_URL"] = itemsatis_url
-        SITE_SETTINGS["support_email"] = support_email or SITE_SETTINGS["support_email"]
-        SITE_SETTINGS["support_discord"] = support_discord or SITE_SETTINGS["support_discord"]
+        cur = store.load_site_settings(
+            app.config["ITEMSATIS_REDIRECT_URL"],
+            "contact@phoenixmarket.example",
+            "YourDiscordTag#0000",
+        )
+        merged_email = support_email or cur.get("support_email", "")
+        merged_discord = support_discord or cur.get("support_discord", "")
+        merged_itemsatis = itemsatis_url or cur.get("itemsatis_redirect_url", "")
+
+        store.save_site_settings(merged_itemsatis, merged_email, merged_discord)
+        if merged_itemsatis:
+            app.config["ITEMSATIS_REDIRECT_URL"] = merged_itemsatis
 
         flash("Settings updated.", "success")
         return redirect(url_for("admin_settings"))
@@ -1046,6 +883,8 @@ def admin_new_listing():
     guard = require_admin()
     if guard:
         return guard
+
+    cat_rows = store.list_categories()
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -1072,7 +911,7 @@ def admin_new_listing():
                 "admin_listing_form.html",
                 mode="new",
                 product=None,
-                categories=CATEGORIES,
+                categories=cat_rows,
             )
 
         try:
@@ -1083,7 +922,7 @@ def admin_new_listing():
                 "admin_listing_form.html",
                 mode="new",
                 product=None,
-                categories=CATEGORIES,
+                categories=cat_rows,
             )
 
         try:
@@ -1097,38 +936,32 @@ def admin_new_listing():
                 "admin_listing_form.html",
                 mode="new",
                 product=None,
-                categories=CATEGORIES,
+                categories=cat_rows,
             )
 
         image_path = process_listing_image(image_file)
 
-        # Generate unique slug
         base_slug = slugify(name)
         slug = base_slug
-        existing_slugs = {p.get("slug") for p in PRODUCTS}
+        existing_slugs = store.list_existing_slugs()
         counter = 2
         while slug in existing_slugs:
             slug = f"{base_slug}-{counter}"
             counter += 1
 
-        new_id = max((p["id"] for p in PRODUCTS), default=0) + 1
-        now = datetime.now(timezone.utc)
-        PRODUCTS.append(
+        store.create_product(
             {
-                "id": new_id,
                 "name": name,
                 "description": description,
                 "base_price": base_price,
                 "base_currency": base_currency,
                 "listing_language": listing_lang,
                 "category": category_name,
-                "image_path": image_path,
+                "image_path": image_path or "",
                 "stock": stock,
                 "status": status,
                 "slug": slug,
                 "owner": (session.get("user") or {}).get("email", "admin"),
-                "created_at": now,
-                "updated_at": now,
             }
         )
         flash("Listing created.", "success")
@@ -1138,7 +971,7 @@ def admin_new_listing():
         "admin_listing_form.html",
         mode="new",
         product=None,
-        categories=CATEGORIES,
+        categories=cat_rows,
     )
 
 
@@ -1158,6 +991,8 @@ def admin_edit_listing(product_id):
     if not product:
         flash("Listing not found.", "error")
         return redirect(url_for("admin_listings"))
+
+    cat_rows = store.list_categories()
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
@@ -1184,7 +1019,7 @@ def admin_edit_listing(product_id):
                 "admin_listing_form.html",
                 mode="edit",
                 product=product,
-                categories=CATEGORIES,
+                categories=cat_rows,
             )
 
         try:
@@ -1195,7 +1030,7 @@ def admin_edit_listing(product_id):
                 "admin_listing_form.html",
                 mode="edit",
                 product=product,
-                categories=CATEGORIES,
+                categories=cat_rows,
             )
 
         try:
@@ -1209,33 +1044,33 @@ def admin_edit_listing(product_id):
                 "admin_listing_form.html",
                 mode="edit",
                 product=product,
-                categories=CATEGORIES,
+                categories=cat_rows,
             )
 
-        # If the title changes, refresh slug while keeping it unique.
         name_changed = name != product.get("name")
-
-        product["name"] = name
-        product["description"] = description
-        product["base_price"] = base_price
-        product["base_currency"] = base_currency
-        product["listing_language"] = listing_lang
-        product["category"] = category_name
+        update_data = {
+            "name": name,
+            "description": description,
+            "base_price": base_price,
+            "base_currency": base_currency,
+            "listing_language": listing_lang,
+            "category": category_name,
+            "stock": stock,
+            "status": status,
+        }
         new_image_path = process_listing_image(image_file)
         if new_image_path:
-            product["image_path"] = new_image_path
-        product["stock"] = stock
-        product["status"] = status
+            update_data["image_path"] = new_image_path
         if name_changed:
             base_slug = slugify(name)
             slug = base_slug
-            existing_slugs = {p.get("slug") for p in PRODUCTS if p["id"] != product["id"]}
+            existing_slugs = store.list_existing_slugs(product_id)
             counter = 2
             while slug in existing_slugs:
                 slug = f"{base_slug}-{counter}"
                 counter += 1
-            product["slug"] = slug
-        product["updated_at"] = datetime.now(timezone.utc)
+            update_data["slug"] = slug
+        store.update_product(product_id, update_data)
 
         flash("Listing updated.", "success")
         return redirect(url_for("admin_listings"))
@@ -1244,7 +1079,7 @@ def admin_edit_listing(product_id):
         "admin_listing_form.html",
         mode="edit",
         product=product,
-        categories=CATEGORIES,
+        categories=cat_rows,
     )
 
 
@@ -1265,7 +1100,7 @@ def admin_delete_listing(product_id):
         flash("Listing not found.", "error")
         return redirect(url_for("admin_listings"))
 
-    PRODUCTS.remove(product)
+    store.delete_product(product_id)
     flash("Listing deleted.", "info")
     return redirect(url_for("admin_listings"))
 
@@ -1280,6 +1115,45 @@ def admin_edit_listing_spec(product_id):
 def admin_delete_listing_spec(product_id):
     """Alias route required by spec; delegates to admin_delete_listing."""
     return admin_delete_listing(product_id)
+
+
+@app.route("/admin/orders")
+def admin_orders():
+    guard = require_admin()
+    if guard:
+        return guard
+    orders = store.list_orders_admin(500)
+    return render_template("admin_orders.html", orders=orders)
+
+
+@app.route("/admin/orders/<int:order_id>", methods=["GET", "POST"])
+def admin_order_detail(order_id):
+    guard = require_admin()
+    if guard:
+        return guard
+    order = store.get_order_by_id(order_id, include_items=True)
+    if not order:
+        flash("Order not found.", "error")
+        return redirect(url_for("admin_orders"))
+    if request.method == "POST":
+        status = (request.form.get("fulfillment_status") or "").strip().lower()
+        if status not in ORDER_STATUS_CHOICES:
+            status = order["fulfillment_status"]
+        tracking_number = (request.form.get("tracking_number") or "").strip() or None
+        carrier_note = (request.form.get("carrier_note") or "").strip() or None
+        store.update_order_fulfillment(
+            order_id,
+            fulfillment_status=status,
+            tracking_number=tracking_number,
+            carrier_note=carrier_note,
+        )
+        flash("Order updated.", "success")
+        return redirect(url_for("admin_order_detail", order_id=order_id))
+    return render_template(
+        "admin_order_detail.html",
+        order=order,
+        status_options=ORDER_STATUS_CHOICES,
+    )
 
 
 @app.post("/api/chat")

@@ -16,6 +16,10 @@
         </p>
       </div>
       <nav class="grid gap-2 text-[11px] text-slate-200">
+        <a href="{{ url_for('admin_orders') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>Orders</span>
+          <span class="text-slate-500">Tracking & fulfillment</span>
+        </a>
         <a href="{{ url_for('admin_listings') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
           <span>Listings</span>
           <span class="text-slate-500">Create / edit / delete</span>
@@ -48,7 +52,7 @@
           {{ total_orders }}
         </p>
         <p class="mt-1 text-[11px] text-slate-500">
-          Based on in-memory demo orders. Connect to a database later.
+          Stored in SQLite. Use Orders to update status and tracking.
         </p>
       </div>
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">

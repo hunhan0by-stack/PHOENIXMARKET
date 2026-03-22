@@ -11,7 +11,12 @@
               {{ site_content.hero_badge }}
             </p>
             <h1 class="text-balance text-4xl font-semibold tracking-tight text-slate-50 sm:text-5xl">
-              {{ site_content.hero_title }}<span class="text-orange-400">MARKET</span>
+              {% set ht = site_content.hero_title %}
+              {% if ht|length > 6 and (ht|upper)[-6:] == 'MARKET' %}
+                <span class="text-slate-50">{{ ht[:-6] }}</span><span class="text-orange-400">{{ ht[-6:] }}</span>
+              {% else %}
+                <span class="text-slate-50">{{ ht }}</span><span class="text-orange-400">MARKET</span>
+              {% endif %}
             </h1>
             <p class="max-w-lg text-sm text-slate-300 sm:text-base">
               {{ site_content.hero_subtitle }}
@@ -108,7 +113,7 @@
                         <img src="{{ url_for('static', filename=img_path) }}" alt="{{ product.name }}" class="h-full w-full object-cover">
                       {% endif %}
                     {% else %}
-                      <img src="{{ url_for('static', filename='images/logo.png') }}" alt="{{ product.name }}" class="h-full w-full object-cover">
+                      <div class="flex h-full w-full items-center justify-center bg-slate-800/90 px-2 text-center text-[10px] font-medium uppercase tracking-wider text-slate-500">{{ t('listing_no_image') }}</div>
                     {% endif %}
                   </div>
                   <h3 class="text-sm font-semibold text-slate-50">{{ product.name }}</h3>
