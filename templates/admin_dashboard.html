@@ -62,6 +62,62 @@
       </div>
     </div>
 
+    {% if analytics %}
+    <div class="mt-10">
+      <h2 class="text-sm font-semibold text-slate-100 mb-3">Visitor analytics</h2>
+      <div class="grid gap-4 md:grid-cols-3 mb-6">
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <p class="text-xs text-slate-400">Total visitors (unique IPs)</p>
+          <p class="mt-1 text-2xl font-semibold text-slate-50">{{ analytics.total_visitors }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <p class="text-xs text-slate-400">Total visits (page views)</p>
+          <p class="mt-1 text-2xl font-semibold text-slate-50">{{ analytics.total_visits }}</p>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <p class="text-xs text-slate-400">Today's visits</p>
+          <p class="mt-1 text-2xl font-semibold text-slate-50">{{ analytics.today_visits }}</p>
+        </div>
+      </div>
+      {% if analytics.top_pages %}
+      <div class="mb-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+        <p class="text-xs text-slate-400 mb-2">Top visited pages</p>
+        <ul class="text-[11px] text-slate-300 space-y-1">
+          {% for path, count in analytics.top_pages %}
+          <li><span class="text-slate-500 font-mono">{{ path }}</span> — {{ count }} hits</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
+        <table class="min-w-full divide-y divide-slate-800">
+          <thead class="bg-slate-950/80 text-slate-300">
+            <tr>
+              <th class="px-3 py-2 text-left">Time</th>
+              <th class="px-3 py-2 text-left">Path / Page</th>
+              <th class="px-3 py-2 text-left">IP / Visitor</th>
+              <th class="px-3 py-2 text-left">User agent</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800">
+            {% for v in analytics.recent_visits %}
+            <tr>
+              <td class="px-3 py-2 text-slate-400">{{ v.ts[:19] if v.ts else '—' }}</td>
+              <td class="px-3 py-2 text-slate-100 font-mono">{{ v.path }}</td>
+              <td class="px-3 py-2 text-slate-300">{{ v.ip }}</td>
+              <td class="px-3 py-2 text-slate-400">{{ v.user_agent_summary }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="px-3 py-4 text-slate-500 text-center">No visits recorded yet.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="mt-10">
       <h2 class="text-sm font-semibold text-slate-100 mb-3">Product catalog</h2>
       <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
@@ -78,7 +134,7 @@
               <tr>
                 <td class="px-3 py-2 text-slate-400">{{ product.id }}</td>
                 <td class="px-3 py-2 text-slate-100">{{ product.name }}</td>
-                <td class="px-3 py-2 text-slate-100">{{ "%.2f"|format(product.price) }} $</td>
+                <td class="px-3 py-2 text-slate-100">{{ "%.2f"|format(product.base_price or product.price or 0) }} {{ product.base_currency or 'USD' }}</td>
               </tr>
             {% endfor %}
           </tbody>

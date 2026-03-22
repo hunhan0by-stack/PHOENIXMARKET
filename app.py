@@ -1,4 +1,6 @@
+import json
 import os
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,6 +20,16 @@ from openai import OpenAI
 from PIL import Image
 from werkzeug.utils import secure_filename
 
+from services.currency import convert, format_price
+from services.listing import (
+    get_display_price,
+    format_product_price,
+    get_listing_language_badge,
+    get_base_price,
+    get_base_currency,
+)
+from services.translations import t as translate
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -25,18 +37,135 @@ app = Flask(__name__)
 # -----------------------------------------------------------------------------
 # Base configuration – environment driven for production readiness
 # -----------------------------------------------------------------------------
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-change-me")
 app_root = Path(__file__).resolve().parent
+
+# On Render, require SECRET_KEY and ITEMSATIS_REDIRECT_URL; allow dev defaults locally
+if os.getenv("RENDER"):
+    secret_key = os.getenv("SECRET_KEY")
+    if not secret_key:
+        raise RuntimeError(
+            "SECRET_KEY environment variable is required on Render. "
+            "Set it in your Render service Environment tab."
+        )
+    itemsatis_url = os.getenv("ITEMSATIS_REDIRECT_URL")
+    if not itemsatis_url:
+        raise RuntimeError(
+            "ITEMSATIS_REDIRECT_URL environment variable is required on Render. "
+            "Set it in your Render service Environment tab."
+        )
+else:
+    secret_key = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
+    itemsatis_url = os.getenv("ITEMSATIS_REDIRECT_URL", "https://example.com/itemsatis")
+
+app.config["SECRET_KEY"] = secret_key
+app.config["ITEMSATIS_REDIRECT_URL"] = itemsatis_url
+ITEMSATIS_REDIRECT_URL = itemsatis_url
 
 UPLOAD_FOLDER = app_root / "static" / "uploads"
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 
-ITEMSATIS_REDIRECT_URL = os.getenv("ITEMSATIS_REDIRECT_URL", "[YOUR_ITEMSATIS_LINK]")
-app.config["ITEMSATIS_REDIRECT_URL"] = ITEMSATIS_REDIRECT_URL
-
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "phoenixmarket")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+
+# -----------------------------------------------------------------------------
+# Visitor analytics – JSON file storage (admin-only)
+# -----------------------------------------------------------------------------
+DATA_DIR = app_root / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+ANALYTICS_FILE = DATA_DIR / "analytics.json"
+ANALYTICS_MAX_ENTRIES = 10000
+_analytics_lock = threading.Lock()
+
+
+def _load_visits():
+    """Load visit records from JSON file."""
+    if not ANALYTICS_FILE.exists():
+        return []
+    try:
+        with open(ANALYTICS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (json.JSONDecodeError, OSError):
+        return []
+
+
+def _save_visits(visits):
+    """Persist visit records (keep last N entries)."""
+    if len(visits) > ANALYTICS_MAX_ENTRIES:
+        visits = visits[-ANALYTICS_MAX_ENTRIES:]
+    try:
+        with _analytics_lock:
+            with open(ANALYTICS_FILE, "w", encoding="utf-8") as f:
+                json.dump(visits, f, indent=0)
+    except OSError:
+        pass
+
+
+def _record_visit(path, ip, user_agent):
+    """Append one visit and persist."""
+    visits = _load_visits()
+    visits.append({
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "path": path or "/",
+        "ip": ip or "unknown",
+        "user_agent": (user_agent or "")[:500],
+    })
+    _save_visits(visits)
+
+
+def _user_agent_summary(ua):
+    """Short summary of user agent for display."""
+    if not ua or ua == "unknown":
+        return "—"
+    ua = ua[:80]
+    if "Chrome" in ua and "Edg" not in ua:
+        return "Chrome"
+    if "Firefox" in ua:
+        return "Firefox"
+    if "Safari" in ua and "Chrome" not in ua:
+        return "Safari"
+    if "Edg" in ua:
+        return "Edge"
+    return ua.split("/")[0] if "/" in ua else ua[:20]
+
+
+def get_analytics_for_admin():
+    """Return summary and recent visits for admin dashboard."""
+    visits = _load_visits()
+    total_visits = len(visits)
+    unique_ips = set(v.get("ip") or "unknown" for v in visits)
+    total_visitors = len(unique_ips)
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_visits = sum(1 for v in visits if v.get("ts") and v["ts"].startswith(today_start.strftime("%Y-%m-%d")))
+
+    # Recent visits (last 100), newest first
+    recent = list(reversed(visits[-100:]))
+    recent_with_summary = [
+        {
+            "ts": v.get("ts", ""),
+            "path": v.get("path", "/"),
+            "ip": v.get("ip", "—"),
+            "user_agent_summary": _user_agent_summary(v.get("user_agent")),
+        }
+        for v in recent
+    ]
+
+    # Top pages by hit count
+    path_counts = {}
+    for v in visits:
+        p = (v.get("path") or "/").strip() or "/"
+        path_counts[p] = path_counts.get(p, 0) + 1
+    top_pages = sorted(path_counts.items(), key=lambda x: -x[1])[:15]
+
+    return {
+        "total_visits": total_visits,
+        "total_visitors": total_visitors,
+        "today_visits": today_visits,
+        "recent_visits": recent_with_summary,
+        "top_pages": top_pages,
+    }
 
 
 # -----------------------------------------------------------------------------
@@ -46,10 +175,12 @@ PRODUCTS = [
     {
         "id": 1,
         "name": "Canva Pro Subscription",
-        "price": 9.99,
+        "base_price": 9.99,
+        "base_currency": "USD",
+        "listing_language": "en",
         "description": "Premium Canva Pro access with templates and collaboration tools.",
         "category": "Design",
-        "image": "/static/images/canva.jpg",
+        "image": "/static/images/canva.png",
         "stock": 100,
         "status": "active",
         "owner": "admin",
@@ -59,10 +190,12 @@ PRODUCTS = [
     {
         "id": 2,
         "name": "Instagram Followers",
-        "price": 14.99,
+        "base_price": 14.99,
+        "base_currency": "USD",
+        "listing_language": "en",
         "description": "Boost your Instagram presence with targeted follower packages.",
         "category": "Social Media",
-        "image": "/static/images/instagram.jpg",
+        "image": "/static/images/instagram.png",
         "stock": 200,
         "status": "active",
         "owner": "admin",
@@ -72,10 +205,12 @@ PRODUCTS = [
     {
         "id": 3,
         "name": "TikTok Views",
-        "price": 12.99,
+        "base_price": 12.99,
+        "base_currency": "USD",
+        "listing_language": "en",
         "description": "Increase your TikTok views for better reach and engagement.",
         "category": "Social Media",
-        "image": "/static/images/tiktok.jpg",
+        "image": "/static/images/tiktok.png",
         "stock": 150,
         "status": "active",
         "owner": "admin",
@@ -85,10 +220,12 @@ PRODUCTS = [
     {
         "id": 4,
         "name": "ChatGPT Accounts",
-        "price": 19.99,
+        "base_price": 19.99,
+        "base_currency": "USD",
+        "listing_language": "en",
         "description": "Reliable ChatGPT access for research, coding and content.",
         "category": "AI",
-        "image": "/static/images/chatgpt.jpg",
+        "image": "/static/images/chatgpt.png",
         "stock": 80,
         "status": "active",
         "owner": "admin",
@@ -183,10 +320,17 @@ def get_cart():
     return session.setdefault("cart", {})
 
 
-def build_cart_items(cart_data):
-    """Return structured cart line items and subtotal from a raw cart dict."""
+def build_cart_items(cart_data, display_currency: str = None):
+    """
+    Return structured cart line items and subtotal.
+    Uses display_currency for user-facing prices.
+    Order storage uses USD-converted values for consistency.
+    """
+    from services.currency import DEFAULT_CURRENCY
+    cur = display_currency or DEFAULT_CURRENCY
     items = []
-    subtotal = 0.0
+    subtotal_usd = 0.0
+    subtotal_display = 0.0
     for pid_str, qty in cart_data.items():
         try:
             product_id = int(pid_str)
@@ -195,10 +339,21 @@ def build_cart_items(cart_data):
         product = get_product(product_id)
         if not product:
             continue
-        line_total = product["price"] * qty
-        subtotal += line_total
-        items.append({"product": product, "qty": qty, "line_total": line_total})
-    return items, subtotal
+        base_price = get_base_price(product)
+        base_cur = get_base_currency(product)
+        line_usd = convert(base_price * qty, base_cur, "USD")
+        unit_display = get_display_price(product, cur)
+        line_display = convert(base_price * qty, base_cur, cur)
+        subtotal_usd += line_usd
+        subtotal_display += line_display
+        items.append({
+            "product": product,
+            "qty": qty,
+            "line_total_usd": line_usd,
+            "display_unit_price": unit_display,
+            "display_line_total": line_display,
+        })
+    return items, subtotal_usd, subtotal_display
 
 
 def allowed_image_file(filename: str) -> bool:
@@ -250,16 +405,64 @@ def process_listing_image(file_storage):
     return f"uploads/{filename}"
 
 
+# Session keys for locale and currency
+LOCALE_KEY = "locale"
+CURRENCY_KEY = "currency"
+SUPPORTED_LOCALES = ("en", "tr")
+SUPPORTED_CURRENCIES = ("TRY", "USD", "EUR")
+
+
+def get_current_locale():
+    """Get user's locale from session, default en."""
+    loc = session.get(LOCALE_KEY) or "en"
+    return loc if loc in SUPPORTED_LOCALES else "en"
+
+
+def get_current_currency():
+    """Get user's currency from session, default USD."""
+    cur = session.get(CURRENCY_KEY) or "USD"
+    return cur if cur in SUPPORTED_CURRENCIES else "USD"
+
+
 @app.context_processor
 def inject_globals():
     """Inject common marketplace-wide data into templates."""
     cart = session.get("cart") or {}
     cart_count = sum(cart.values())
+    locale = get_current_locale()
+    currency = get_current_currency()
+
+    def t(key):
+        return translate(key, locale)
+
     return {
         "cart_count": cart_count,
         "site_content": SITE_CONTENT,
         "site_settings": SITE_SETTINGS,
+        "locale": locale,
+        "currency": currency,
+        "t": t,
+        "format_price": format_price,
+        "get_display_price": lambda p: get_display_price(p, currency),
+        "format_product_price": lambda p: format_product_price(p, currency),
+        "get_listing_language_badge": get_listing_language_badge,
+        "SUPPORTED_LOCALES": SUPPORTED_LOCALES,
+        "SUPPORTED_CURRENCIES": SUPPORTED_CURRENCIES,
     }
+
+
+@app.before_request
+def record_visit():
+    """Record each page view for admin analytics (skip static, API, health, sitemap)."""
+    path = request.path
+    if path.startswith("/static/") or path.startswith("/api/") or path in ("/health", "/sitemap.xml"):
+        return
+    ip = request.remote_addr or (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip() or "unknown"
+    ua = request.user_agent.string if request.user_agent else ""
+    try:
+        _record_visit(path, ip, ua)
+    except Exception:  # noqa: S110
+        pass
 
 
 def get_public_products():
@@ -278,6 +481,54 @@ def is_admin():
 def require_admin():
     if not is_admin():
         return redirect(url_for("admin_login"))
+
+
+# -----------------------------------------------------------------------------
+# Locale and currency switchers
+# -----------------------------------------------------------------------------
+@app.route("/set-locale/<locale>")
+def set_locale(locale):
+    """Set user locale and redirect back."""
+    loc = (locale or "").lower()[:2]
+    if loc in SUPPORTED_LOCALES:
+        session[LOCALE_KEY] = loc
+    return redirect(request.referrer or url_for("index"))
+
+
+@app.route("/set-currency/<currency>")
+def set_currency(currency):
+    """Set user currency and redirect back."""
+    cur = (currency or "").upper()
+    if cur in SUPPORTED_CURRENCIES:
+        session[CURRENCY_KEY] = cur
+    return redirect(request.referrer or url_for("index"))
+
+
+# -----------------------------------------------------------------------------
+# Health check (for Render and load balancers)
+# -----------------------------------------------------------------------------
+@app.route("/sitemap.xml")
+def sitemap():
+    """Generate sitemap for SEO."""
+    base_url = request.url_root.rstrip("/")
+    pages = [("/", "daily", "1.0"), ("/products", "daily", "0.9"), ("/contact", "monthly", "0.5")]
+    for c in CATEGORIES:
+        pages.append((f"/category/{c['slug']}", "weekly", "0.8"))
+    for p in get_public_products():
+        slug = p.get("slug") or str(p["id"])
+        pages.append((f"/product/{slug}", "weekly", "0.8"))
+    xml = ['<?xml version="1.0" encoding="UTF-8"?>']
+    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    for path, changefreq, priority in pages:
+        xml.append(f"  <url><loc>{base_url}{path}</loc><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>")
+    xml.append("</urlset>")
+    return "\n".join(xml), 200, {"Content-Type": "application/xml"}
+
+
+@app.route("/health")
+def health():
+    """Lightweight health check; skip analytics."""
+    return jsonify({"status": "ok"}), 200
 
 
 # -----------------------------------------------------------------------------
@@ -400,6 +651,12 @@ def admin_logout():
     return redirect(url_for("index"))
 
 
+@app.route("/contact")
+def contact():
+    """Contact / support page."""
+    return render_template("contact.html")
+
+
 @app.route("/forgot-password")
 def forgot_password():
     return render_template("forgot_password.html")
@@ -410,7 +667,28 @@ def account():
     user = session.get("user")
     if not user:
         return redirect(url_for("signin"))
-    return render_template("account.html", user=user)
+    user_email = (user.get("email") or "").strip().lower()
+    order_count = sum(1 for o in ORDERS if (o.get("user_email") or "").strip().lower() == user_email)
+    return render_template("account.html", user=user, order_count=order_count)
+
+
+@app.route("/account/orders")
+def account_orders():
+    """Order history for signed-in users."""
+    user = session.get("user")
+    if not user:
+        return redirect(url_for("signin"))
+    user_email = (user.get("email") or "").strip().lower()
+    user_orders = [
+        o for o in reversed(ORDERS)
+        if (o.get("user_email") or "").strip().lower() == user_email
+    ]
+    # Enrich order items with product names
+    for order in user_orders:
+        for item in order.get("items", []):
+            p = get_product(item.get("product_id"))
+            item["product_name"] = p["name"] if p else "Unknown product"
+    return render_template("orders.html", orders=user_orders)
 
 
 # -----------------------------------------------------------------------------
@@ -419,8 +697,12 @@ def account():
 @app.route("/cart")
 def cart():
     cart_data = get_cart()
-    items, subtotal = build_cart_items(cart_data)
-    return render_template("cart.html", items=items, subtotal=subtotal)
+    items, _subtotal_base, subtotal_display = build_cart_items(
+        cart_data, get_current_currency()
+    )
+    return render_template(
+        "cart.html", items=items, subtotal=subtotal_display
+    )
 
 
 @app.route("/cart/add/<int:product_id>", methods=["POST"])
@@ -462,7 +744,9 @@ def checkout():
         flash("Your cart is empty.", "error")
         return redirect(url_for("products"))
 
-    items, subtotal = build_cart_items(cart_data)
+    items, subtotal_base, subtotal_display = build_cart_items(
+        cart_data, get_current_currency()
+    )
 
     if request.method == "POST":
         full_name = request.form.get("full_name", "").strip()
@@ -470,7 +754,9 @@ def checkout():
 
         if not full_name or not email:
             flash("Full name and email are required to place an order.", "error")
-            return render_template("checkout.html", items=items, subtotal=subtotal)
+            return render_template(
+                "checkout.html", items=items, subtotal=subtotal_display
+            )
 
         order_id = len(ORDERS) + 1
         now = datetime.now(timezone.utc)
@@ -478,7 +764,11 @@ def checkout():
             {
                 "product_id": item["product"]["id"],
                 "quantity": item["qty"],
-                "price": item["product"]["price"],
+                "price": convert(
+                    get_base_price(item["product"]),
+                    get_base_currency(item["product"]),
+                    "USD",
+                ),
             }
             for item in items
         ]
@@ -487,7 +777,8 @@ def checkout():
                 "id": order_id,
                 "user_email": email,
                 "full_name": full_name,
-                "total_price": subtotal,
+                "total_price": subtotal_base,
+                "total_currency": "USD",
                 "items": order_items,
                 "created_at": now,
             }
@@ -500,7 +791,9 @@ def checkout():
         )
         return redirect(app.config["ITEMSATIS_REDIRECT_URL"])
 
-    return render_template("checkout.html", items=items, subtotal=subtotal)
+    return render_template(
+        "checkout.html", items=items, subtotal=subtotal_display
+    )
 
 
 # -----------------------------------------------------------------------------
@@ -531,6 +824,7 @@ def admin_dashboard():
     active_products = len([p for p in PRODUCTS if p.get("status") == "active"])
     inactive_products = total_products - active_products
     total_orders = len(ORDERS)
+    analytics = get_analytics_for_admin()
     return render_template(
         "admin_dashboard.html",
         products=PRODUCTS,
@@ -539,6 +833,7 @@ def admin_dashboard():
         inactive_products=inactive_products,
         total_orders=total_orders,
         categories=CATEGORIES,
+        analytics=analytics,
     )
 
 
@@ -551,6 +846,7 @@ def admin_listings():
     q = (request.args.get("q") or "").strip().lower()
     status = (request.args.get("status") or "").strip().lower()
     category = (request.args.get("category") or "").strip().lower()
+    lang = (request.args.get("lang") or "").strip().lower()
 
     filtered = PRODUCTS
     if q:
@@ -572,6 +868,12 @@ def admin_listings():
             for p in filtered
             if p.get("category", "").lower() == category
         ]
+    if lang:
+        filtered = [
+            p
+            for p in filtered
+            if (p.get("listing_language") or "en").lower() == lang
+        ]
 
     categories = sorted({p.get("category", "") for p in PRODUCTS if p.get("category")})
 
@@ -582,6 +884,7 @@ def admin_listings():
         current_q=q,
         current_status=status,
         current_category=category,
+        current_lang=lang,
     )
 
 
@@ -747,14 +1050,24 @@ def admin_new_listing():
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
-        price_raw = request.form.get("price", "").strip()
+        price_raw = request.form.get("base_price", "").strip()
+        base_currency = (
+            request.form.get("base_currency", "USD").strip().upper() or "USD"
+        )
+        if base_currency not in ("TRY", "USD", "EUR"):
+            base_currency = "USD"
+        listing_lang = (
+            request.form.get("listing_language", "en").strip().lower() or "en"
+        )
+        if listing_lang not in ("tr", "en"):
+            listing_lang = "en"
         category_name = request.form.get("category", "").strip() or "General"
         image_file = request.files.get("image_file")
         stock_raw = request.form.get("stock", "").strip() or "0"
         status = request.form.get("status", "active").strip() or "active"
 
         if not name or not description or not price_raw:
-            flash("Name, description and price are required.", "error")
+            flash("Name, description and base price are required.", "error")
             return render_template(
                 "admin_listing_form.html",
                 mode="new",
@@ -763,9 +1076,9 @@ def admin_new_listing():
             )
 
         try:
-            price = float(price_raw)
+            base_price = float(price_raw)
         except ValueError:
-            flash("Price must be a number.", "error")
+            flash("Base price must be a number.", "error")
             return render_template(
                 "admin_listing_form.html",
                 mode="new",
@@ -805,12 +1118,14 @@ def admin_new_listing():
                 "id": new_id,
                 "name": name,
                 "description": description,
-                "price": price,
+                "base_price": base_price,
+                "base_currency": base_currency,
+                "listing_language": listing_lang,
                 "category": category_name,
                 "image_path": image_path,
                 "stock": stock,
                 "status": status,
-                 "slug": slug,
+                "slug": slug,
                 "owner": (session.get("user") or {}).get("email", "admin"),
                 "created_at": now,
                 "updated_at": now,
@@ -847,14 +1162,24 @@ def admin_edit_listing(product_id):
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
-        price_raw = request.form.get("price", "").strip()
+        price_raw = request.form.get("base_price", "").strip()
+        base_currency = (
+            request.form.get("base_currency", "USD").strip().upper() or "USD"
+        )
+        if base_currency not in ("TRY", "USD", "EUR"):
+            base_currency = "USD"
+        listing_lang = (
+            request.form.get("listing_language", "en").strip().lower() or "en"
+        )
+        if listing_lang not in ("tr", "en"):
+            listing_lang = "en"
         category_name = request.form.get("category", "").strip() or product["category"]
         image_file = request.files.get("image_file")
         stock_raw = request.form.get("stock", "").strip()
         status = request.form.get("status", "active").strip() or product["status"]
 
         if not name or not description or not price_raw:
-            flash("Name, description and price are required.", "error")
+            flash("Name, description and base price are required.", "error")
             return render_template(
                 "admin_listing_form.html",
                 mode="edit",
@@ -863,9 +1188,9 @@ def admin_edit_listing(product_id):
             )
 
         try:
-            price = float(price_raw)
+            base_price = float(price_raw)
         except ValueError:
-            flash("Price must be a number.", "error")
+            flash("Base price must be a number.", "error")
             return render_template(
                 "admin_listing_form.html",
                 mode="edit",
@@ -892,7 +1217,9 @@ def admin_edit_listing(product_id):
 
         product["name"] = name
         product["description"] = description
-        product["price"] = price
+        product["base_price"] = base_price
+        product["base_currency"] = base_currency
+        product["listing_language"] = listing_lang
         product["category"] = category_name
         new_image_path = process_listing_image(image_file)
         if new_image_path:

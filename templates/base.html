@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ locale or 'en' }}">
 <head>
   <meta charset="UTF-8" />
   <title>{% block title %}PHOENIXMARKET – Digital Services Marketplace{% endblock %}</title>
@@ -63,20 +63,32 @@
           </span>
         </a>
 
-        <nav class="hidden items-center gap-6 text-xs font-medium text-slate-300 md:flex">
-          <a href="{{ url_for('index') }}" class="hover:text-brandOrange transition-colors">Home</a>
-          <a href="{{ url_for('products') }}" class="hover:text-brandOrange transition-colors">Products</a>
+        <nav class="hidden items-center gap-4 text-xs font-medium text-slate-300 md:flex">
+          <a href="{{ url_for('index') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_home') }}</a>
+          <a href="{{ url_for('products') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_products') }}</a>
+          <a href="{{ url_for('contact') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_contact') }}</a>
           <form method="get" action="{{ url_for('search') }}" class="relative">
             <input
               type="text"
               name="q"
               value="{{ request.args.get('q', '') }}"
-              placeholder="Search..."
+              placeholder="{{ t('nav_search_placeholder') }}"
               class="w-40 rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1.5 pr-7 text-[11px] text-slate-100 placeholder:text-slate-500 focus:border-brandOrange focus:outline-none"
             >
           </form>
+          <div class="flex items-center gap-1 border-l border-r border-slate-700 px-2">
+            <span class="text-slate-500 text-[10px]">Lang:</span>
+            <a href="{{ url_for('set_locale', locale='en') }}" class="px-1.5 py-0.5 rounded {{ locale == 'en' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">EN</a>
+            <a href="{{ url_for('set_locale', locale='tr') }}" class="px-1.5 py-0.5 rounded {{ locale == 'tr' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">TR</a>
+          </div>
+          <div class="flex items-center gap-1">
+            <span class="text-slate-500 text-[10px]">Currency:</span>
+            <a href="{{ url_for('set_currency', currency='TRY') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'TRY' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">₺</a>
+            <a href="{{ url_for('set_currency', currency='USD') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'USD' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">$</a>
+            <a href="{{ url_for('set_currency', currency='EUR') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'EUR' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">€</a>
+          </div>
           <a href="{{ url_for('cart') }}" class="relative hover:text-brandOrange transition-colors">
-            Cart
+            {{ t('nav_cart') }}
             {% if cart_count %}
               <span class="absolute -right-3 -top-2 rounded-full bg-brandRed px-1.5 text-[10px] font-semibold text-black">
                 {{ cart_count }}
@@ -85,24 +97,24 @@
           </a>
           {% if session.get('is_admin') %}
             <a href="{{ url_for('admin_dashboard') }}" class="hover:text-brandOrange transition-colors">
-              Admin Panel
+              {{ t('nav_admin_panel') }}
             </a>
           {% else %}
             <a href="{{ url_for('admin_login') }}" class="hover:text-brandOrange transition-colors">
-              ADMIN LOGIN
+              {{ t('nav_admin_login') }}
             </a>
           {% endif %}
           {% if session.get('user') %}
             <a href="{{ url_for('account') }}" class="hover:text-brandOrange transition-colors">
-              Account
+              {{ t('nav_account') }}
             </a>
             <a href="{{ url_for('signout') }}" class="text-slate-400 hover:text-brandOrange transition-colors">
-              Logout
+              {{ t('nav_logout') }}
             </a>
           {% else %}
-            <a href="{{ url_for('signin') }}" class="hover:text-brandOrange transition-colors">Sign In</a>
+            <a href="{{ url_for('signin') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_sign_in') }}</a>
             <a href="{{ url_for('signup') }}" class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black">
-              Sign Up
+              {{ t('nav_sign_up') }}
             </a>
           {% endif %}
         </nav>
@@ -137,10 +149,10 @@
           <span class="font-semibold tracking-[0.22em] text-slate-300 uppercase">
             PHOENIXMARKET
           </span>
-          <span>© 2026</span>
+          <span>{{ t('footer_rights') }}</span>
         </div>
         <div class="flex flex-wrap items-center gap-4">
-          <span>{{ site_content.footer_contact_text }}</span>
+          <a href="{{ url_for('contact') }}" class="hover:text-brandOrange">{{ site_content.footer_contact_text }}</a>
           <span>{{ site_content.footer_discord_text }}</span>
         </div>
       </div>

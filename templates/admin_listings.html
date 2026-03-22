@@ -20,7 +20,7 @@
       </a>
     </div>
 
-    <form method="get" class="mt-6 grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px] md:grid-cols-4">
+    <form method="get" class="mt-6 grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px] md:grid-cols-5">
       <div class="md:col-span-2">
         <label class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Search</label>
         <input
@@ -56,6 +56,17 @@
           <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>Inactive</option>
         </select>
       </div>
+      <div>
+        <label class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Language</label>
+        <select
+          name="lang"
+          class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none"
+        >
+          <option value="">All</option>
+          <option value="en" {% if current_lang == 'en' %}selected{% endif %}>English</option>
+          <option value="tr" {% if current_lang == 'tr' %}selected{% endif %}>Turkish</option>
+        </select>
+      </div>
     </form>
 
     <div class="mt-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
@@ -67,6 +78,7 @@
             <th class="px-3 py-2 text-left">Title</th>
             <th class="px-3 py-2 text-left">Category</th>
             <th class="px-3 py-2 text-left">Price</th>
+            <th class="px-3 py-2 text-left">Lang</th>
             <th class="px-3 py-2 text-left">Stock</th>
             <th class="px-3 py-2 text-left">Status</th>
             <th class="px-3 py-2 text-left">Created</th>
@@ -94,7 +106,8 @@
                 {{ product.name }}
               </td>
               <td class="px-3 py-2 text-slate-300">{{ product.category }}</td>
-              <td class="px-3 py-2 text-slate-100">{{ "%.2f"|format(product.price) }} $</td>
+              <td class="px-3 py-2 text-slate-100">{{ "%.2f"|format(product.base_price or product.price or 0) }} {{ product.base_currency or 'USD' }}</td>
+              <td class="px-3 py-2 text-slate-300"><span class="rounded bg-slate-700 px-1.5 py-0.5 text-[10px]">{{ product.listing_language or 'en'|upper }}</span></td>
               <td class="px-3 py-2 text-slate-100">{{ product.stock }}</td>
               <td class="px-3 py-2">
                 <span class="rounded-full px-2 py-0.5 text-[10px]
