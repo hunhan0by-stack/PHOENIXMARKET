@@ -1,0 +1,135 @@
+"""
+Order management: list, search, CSV export, fulfillment, payments, internal notes.
+"""
+import csv
+import io
+
+from flask import current_app, flash, redirect, render_template, request, Response, url_for
+
+import services.notifications as notifications
+from services.pagination import Page
+import services.store as store
+from services.web import tr_msg
+from views.admin.base import bp, notify_back_in_stock_safely, ORDER_STATUS_CHOICES
+
+
+ORDERS_PER_PAGE = 25
+CSV_EXPORT_LIMIT = 10000
+
+
+def order_filters_from_request():
+    """(status or None, query or None) from ?status=&q=; unknown statuses are ignored."""
+    status = (request.args.get("status") or "").strip().lower()
+    q = (request.args.get("q") or "").strip()
+    return (status if status in ORDER_STATUS_CHOICES else None), (q or None)
+
+
+@bp.route("/admin/orders")
+def orders():
+    status, q = order_filters_from_request()
+    total = store.count_orders_filtered(status, q)
+    page = Page.from_arg(request.args.get("page"), ORDERS_PER_PAGE, total)
+    return render_template(
+        "admin_orders.html",
+        orders=store.search_orders(status, q, limit=page.per_page, offset=page.offset),
+        page=page,
+        current_status=status or "",
+        current_q=q or "",
+        filter_args={k: v for k, v in (("status", status), ("q", q)) if v},
+        status_counts=store.count_orders_by_status(),
+        status_options=ORDER_STATUS_CHOICES,
+    )
+
+
+def csv_safe(value) -> str:
+    """Neutralise spreadsheet formulas in customer-provided cells."""
+    text = "" if value is None else str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
+@bp.route("/admin/orders.csv")
+def orders_csv():
+    status, q = order_filters_from_request()
+    rows = store.search_orders(status, q, limit=CSV_EXPORT_LIMIT, include_items=True)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([
+        "id", "created_at", "status", "full_name", "email", "total_usd",
+        "discount_usd", "coupon", "items", "tracking_number", "customer_account", "notes",
+    ])
+    for o in rows:
+        items = "; ".join(f"{li['display_name']} x{li['quantity']}" for li in o["line_items"])
+        writer.writerow([
+            o["id"],
+            o["created_at"].strftime("%Y-%m-%d %H:%M") if o["created_at"] else "",
+            o["fulfillment_status"],
+            csv_safe(o["full_name"]),
+            csv_safe(o["user_email"]),
+            f"{o['total_price']:.2f}",
+            f"{o['discount_usd']:.2f}",
+            o["coupon_code"] or "",
+            csv_safe(items),
+            csv_safe(o["tracking_number"]),
+            "yes" if o["user_id"] else "no",
+            csv_safe(o["notes"]),
+        ])
+    return Response(
+        "﻿" + buf.getvalue(),  # BOM so Excel detects UTF-8
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=phoenixmarket-orders.csv"},
+    )
+
+
+@bp.route("/admin/orders/<int:order_id>", methods=["GET", "POST"])
+def order_detail(order_id):
+    order = store.get_order_by_id(order_id, include_items=True)
+    if not order:
+        flash(tr_msg("flash_order_not_found"), "error")
+        return redirect(url_for("admin.orders"))
+    if request.method == "POST":
+        status = (request.form.get("fulfillment_status") or "").strip().lower()
+        if status not in ORDER_STATUS_CHOICES:
+            status = order["fulfillment_status"]
+        tracking_number = (request.form.get("tracking_number") or "").strip() or None
+        carrier_note = (request.form.get("carrier_note") or "").strip() or None
+        try:
+            changes = store.update_order_fulfillment(
+                order_id,
+                fulfillment_status=status,
+                tracking_number=tracking_number,
+                carrier_note=carrier_note,
+            )
+        except store.OutOfStockError as exc:
+            flash(tr_msg("flash_uncancel_stock", name=exc.product_name), "error")
+            return redirect(url_for("admin.order_detail", order_id=order_id))
+        flash(tr_msg("flash_order_updated"), "success")
+        if status == "cancelled" and order["fulfillment_status"] != "cancelled":
+            for product_id in {li["product_id"] for li in order["line_items"]}:
+                notify_back_in_stock_safely(product_id)
+        if changes and request.form.get("notify_customer"):
+            try:
+                notifications.send_order_update(store.get_order_by_id(order_id), changes)
+                flash(tr_msg("flash_customer_notified"), "info")
+            except Exception:  # noqa: BLE001 - the update itself is already saved
+                current_app.logger.exception("Order update email failed for order %s", order_id)
+        return redirect(url_for("admin.order_detail", order_id=order_id))
+    return render_template(
+        "admin_order_detail.html",
+        order=order,
+        events=store.list_order_events(order_id),
+        status_options=ORDER_STATUS_CHOICES,
+    )
+
+
+@bp.route("/admin/orders/<int:order_id>/notes", methods=["POST"])
+def add_order_note(order_id):
+    if not store.get_order_by_id(order_id, include_items=False):
+        flash(tr_msg("flash_order_not_found"), "error")
+        return redirect(url_for("admin.orders"))
+    note = (request.form.get("note") or "").strip()
+    if not note:
+        flash(tr_msg("flash_note_empty"), "error")
+    else:
+        store.add_order_internal_note(order_id, note[:2000])
+        flash(tr_msg("flash_note_added"), "success")
+    return redirect(url_for("admin.order_detail", order_id=order_id))

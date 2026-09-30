@@ -1,0 +1,23 @@
+{# Page links. Import with: {% from "_pagination.html" import pagination with context %}
+   args: the current filters (without "page") so links keep them. #}
+{% macro pagination(page, endpoint, args={}) %}
+  {% if page.pages > 1 %}
+    <nav class="mt-6 flex flex-wrap items-center justify-center gap-1 text-xs" aria-label="{{ t('pagination_label') }}">
+      {% if page.has_prev %}
+        <a href="{{ url_for(endpoint, page=page.number - 1, **args) }}" class="rounded-lg border border-slate-800 px-3 py-1.5 text-slate-300 hover:border-brandOrange hover:text-brandOrange" aria-label="{{ t('pagination_prev') }}">‹</a>
+      {% endif %}
+      {% for n in page.window() %}
+        {% if n is none %}
+          <span class="px-2 text-slate-600">…</span>
+        {% elif n == page.number %}
+          <span aria-current="page" class="rounded-lg border border-brandOrange bg-brandOrange/15 px-3 py-1.5 font-semibold text-brandOrange">{{ n }}</span>
+        {% else %}
+          <a href="{{ url_for(endpoint, page=n, **args) }}" class="rounded-lg border border-slate-800 px-3 py-1.5 text-slate-300 hover:border-brandOrange hover:text-brandOrange">{{ n }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if page.has_next %}
+        <a href="{{ url_for(endpoint, page=page.number + 1, **args) }}" class="rounded-lg border border-slate-800 px-3 py-1.5 text-slate-300 hover:border-brandOrange hover:text-brandOrange" aria-label="{{ t('pagination_next') }}">›</a>
+      {% endif %}
+    </nav>
+  {% endif %}
+{% endmacro %}

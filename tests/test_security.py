@@ -1,0 +1,76 @@
+"""CSRF protection, security headers, redirect safety and brute-force limits."""
+import re
+
+
+def test_post_without_or_with_wrong_token_is_rejected(client):
+    r = client.post("/cart/add/2", csrf=False)
+    assert r.status_code == 302
+    assert "2" not in (client.session().get("cart") or {})
+    assert any("session expired" in m for m in client.flashes())
+    client.post("/cart/add/2", {"csrf_token": "wrong"})
+    assert "2" not in (client.session().get("cart") or {})
+    client.post("/cart/add/2")
+    assert client.session()["cart"]["2"] == 1
+
+
+def test_api_requires_csrf_header(client):
+    r = client.post_json("/api/chat", {"message": "hi"}, header_token=None)
+    assert r.status_code == 400 and "error" in r.get_json()
+
+
+def test_pages_render_csrf_meta_and_fields(client):
+    html = client.html("/")
+    assert 'name="csrf-token"' in html and 'name="csrf_token"' in html
+
+
+def test_external_referrer_is_not_followed(client):
+    r = client.get("/set-locale/tr", headers={"Referer": "https://evil.example/phish"})
+    assert r.headers["Location"] in ("/", "http://localhost/")
+    r = client.get("/set-locale/tr", headers={"Referer": "http://localhost/products"})
+    assert r.headers["Location"].endswith("/products")
+
+
+def test_signin_locks_after_ten_failures_per_ip(make_client):
+    make_client(ip="10.1.0.9").signup()
+    attacker = make_client(ip="10.66.0.1")
+    for _ in range(10):
+        attacker.signin(password="bad-password")
+    r = attacker.signin()
+    assert r.status_code == 429 and "Too many attempts" in r.get_data(as_text=True)
+    assert make_client(ip="10.66.0.2").signin().status_code == 302
+
+
+def test_admin_login_locks_after_five_failures(make_client):
+    attacker = make_client(ip="10.77.0.1")
+    for _ in range(5):
+        attacker.post("/admin/login", {"username": "admin", "password": "nope"})
+    r = attacker.post("/admin/login", {"username": "admin", "password": "admin-pass"})
+    assert r.status_code == 429 and not attacker.session().get("is_admin")
+
+
+def test_security_headers(client):
+    r = client.get("/")
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    assert r.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert r.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert "camera=()" in r.headers["Permissions-Policy"]
+
+
+def test_content_security_policy_allows_only_own_scripts_and_styles(client):
+    r = client.get("/")
+    csp = r.headers["Content-Security-Policy"]
+    html = r.get_data(as_text=True)
+    assert "script-src 'self';" in csp and "style-src 'self';" in csp
+    assert "unsafe-inline" not in csp and "unsafe-eval" not in csp and "cdn." not in csp
+    assert "<style" not in html and 'style="' not in html  # nothing inline to allow
+    assert "onsubmit=" not in html and "onclick=" not in html
+    assert '/static/css/app.css?v=' in html
+    assert "Content-Security-Policy" not in client.get("/robots.txt").headers
+
+
+def test_admin_pages_require_login(client):
+    for path in ("/admin/dashboard", "/admin/listings", "/admin/orders", "/admin/settings"):
+        r = client.get(path)
+        assert r.status_code == 302 and r.headers["Location"].endswith("/admin/login")
+    r = client.post("/admin/create-category", {"name": "Hacked"})
+    assert r.headers["Location"].endswith("/admin/login")

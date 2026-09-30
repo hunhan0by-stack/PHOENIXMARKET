@@ -1,28 +1,62 @@
 {% extends "base.html" %}
-{% block title %}Orders – Admin – PHOENIXMARKET{% endblock %}
+{% from "_pagination.html" import pagination with context %}
+{% block title %}{{ t('adm_orders') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
 {% block content %}
 <section class="bg-slate-950/90">
   <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">Admin</p>
-        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">Orders</h1>
-        <p class="mt-1 text-sm text-slate-400">Fulfillment and tracking (SQLite).</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_admin') }}</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">{{ t('adm_orders') }}</h1>
+        <p class="mt-1 text-sm text-slate-400">{{ t('adm_orders_intro') }}</p>
       </div>
-      <a href="{{ url_for('admin_dashboard') }}" class="text-xs text-brandOrange hover:text-amber-200">← Dashboard</a>
+      <div class="flex items-center gap-3 text-xs">
+        <a href="{{ url_for('admin.orders_csv', **filter_args) }}" class="rounded-full border border-slate-700 px-4 py-2 text-slate-200 hover:border-brandOrange hover:text-brandOrange">{{ t('adm_export_csv') }}</a>
+        <a href="{{ url_for('admin.dashboard') }}" class="text-brandOrange hover:text-amber-200">{{ t('adm_back_dashboard') }}</a>
+      </div>
     </div>
 
-    <div class="mt-8 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
+    {% set all_count = status_counts.values()|sum %}
+    <nav class="mt-6 flex flex-wrap gap-2 text-[11px]" aria-label="{{ t('adm_order_status') }}">
+      <a href="{{ url_for('admin.orders', q=current_q) if current_q else url_for('admin.orders') }}"
+         class="rounded-full border px-3 py-1 {{ 'border-brandOrange bg-brandOrange/15 text-brandOrange' if not current_status else 'border-slate-700 text-slate-300 hover:border-brandOrange' }}">
+        {{ t('adm_all') }} <span class="text-slate-500">{{ all_count }}</span>
+      </a>
+      {% for s in status_options %}
+        <a href="{{ url_for('admin.orders', status=s, q=current_q) if current_q else url_for('admin.orders', status=s) }}"
+           class="rounded-full border px-3 py-1 {{ 'border-brandOrange bg-brandOrange/15 text-brandOrange' if current_status == s else 'border-slate-700 text-slate-300 hover:border-brandOrange' }}">
+          {{ t('status_' ~ s) }} <span class="text-slate-500">{{ status_counts.get(s, 0) }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+
+    <form method="get" class="mt-4 flex flex-wrap items-center gap-2 text-xs">
+      {% if current_status %}<input type="hidden" name="status" value="{{ current_status }}">{% endif %}
+      <input
+        type="text"
+        name="q"
+        value="{{ current_q }}"
+        placeholder="{{ t('adm_order_search_placeholder') }}"
+        class="w-72 max-w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-xs text-slate-100 focus:border-brandOrange focus:outline-none"
+      >
+      <button class="rounded-lg border border-slate-700 px-3 py-2 text-slate-200 hover:border-brandOrange hover:text-brandOrange">{{ t('adm_search') }}</button>
+      {% if current_q %}
+        <a href="{{ url_for('admin.orders', status=current_status) if current_status else url_for('admin.orders') }}" class="text-slate-400 hover:text-brandOrange">{{ t('adm_clear') }}</a>
+      {% endif %}
+      <span class="ml-auto text-slate-500">{{ t('adm_total_n').format(n=page.total) }}</span>
+    </form>
+
+    <div class="mt-4 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
       <table class="min-w-full divide-y divide-slate-800">
         <thead class="bg-slate-950/80 text-slate-400">
           <tr>
-            <th class="px-3 py-2 text-left">ID</th>
-            <th class="px-3 py-2 text-left">Date</th>
-            <th class="px-3 py-2 text-left">Customer</th>
-            <th class="px-3 py-2 text-left">Email</th>
-            <th class="px-3 py-2 text-left">Status</th>
-            <th class="px-3 py-2 text-right">Total</th>
-            <th class="px-3 py-2 text-right">Action</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_id') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_date') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_customer') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_email') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_status') }}</th>
+            <th class="px-3 py-2 text-right">{{ t('adm_total') }}</th>
+            <th class="px-3 py-2 text-right">{{ t('adm_action') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800 text-slate-200">
@@ -30,22 +64,24 @@
           <tr>
             <td class="px-3 py-2 font-mono">#{{ o.id }}</td>
             <td class="px-3 py-2 text-slate-400">{{ o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else '—' }}</td>
-            <td class="px-3 py-2">{{ o.full_name }}</td>
+            <td class="px-3 py-2">{{ o.full_name }}{% if o.user_id %} <span class="ml-1 rounded bg-slate-800 px-1 text-[9px] text-slate-400" title="{{ t('adm_placed_signed_in') }}">{{ t('adm_account_badge') }}</span>{% endif %}</td>
             <td class="px-3 py-2 text-slate-400">{{ o.user_email }}</td>
-            <td class="px-3 py-2 capitalize text-brandOrange">{{ o.fulfillment_status }}</td>
+            <td class="px-3 py-2 text-brandOrange">{{ t('status_' ~ o.fulfillment_status) }}</td>
             <td class="px-3 py-2 text-right">${{ "%.2f"|format(o.total_price) }}</td>
             <td class="px-3 py-2 text-right">
-              <a href="{{ url_for('admin_order_detail', order_id=o.id) }}" class="text-brandOrange hover:text-amber-200">Manage</a>
+              <a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="text-brandOrange hover:text-amber-200">{{ t('adm_manage') }}</a>
             </td>
           </tr>
           {% else %}
           <tr>
-            <td colspan="7" class="px-3 py-8 text-center text-slate-500">No orders yet.</td>
+            <td colspan="7" class="px-3 py-8 text-center text-slate-500">{{ t('adm_no_orders_match') }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
+    {{ pagination(page, 'admin.orders', filter_args) }}
   </div>
 </section>
 {% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_coupon_form.html" import coupon_form with context %}
+{% block title %}{{ t('adm_edit') }} {{ coupon.code }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_breadcrumb_coupons') }}</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50 font-mono">{{ coupon.code }}</h1>
+        <p class="mt-1 text-xs text-slate-500">{{ t('adm_uses_n').format(n=coupon.used_count) }}</p>
+      </div>
+      <a href="{{ url_for('admin.coupons_list') }}" class="text-xs text-brandOrange hover:text-amber-200">{{ t('adm_back_coupons') }}</a>
+    </div>
+    <div class="mt-6">
+      {{ coupon_form(form, url_for('admin.edit_coupon', coupon_id=coupon.id), t('admin_save')) }}
+    </div>
+  </div>
+</section>
+{% endblock %}

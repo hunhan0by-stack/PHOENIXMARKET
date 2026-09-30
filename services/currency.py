@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 
+
 SUPPORTED_CURRENCIES = ("TRY", "USD", "EUR")
 DEFAULT_CURRENCY = "USD"
 

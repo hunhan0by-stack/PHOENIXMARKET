@@ -1,0 +1,4 @@
+-r requirements.txt
+pytest>=8,<9
+# Known-vulnerability check for requirements.txt (scripts/check.ps1 runs it)
+pip-audit>=2.7,<3

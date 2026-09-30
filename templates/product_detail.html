@@ -1,5 +1,12 @@
 {% extends "base.html" %}
+{% from "_product.html" import product_card, favorite_button, product_image, rating_stars, stock_badge, cart_button with context %}
 {% block title %}{{ product.name }} – PHOENIXMARKET{% endblock %}
+{% block meta_description %}{{ product.description|truncate(160) }}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_image %}{{ image_url or url_for('static', filename='images/logo.png', _external=True) }}{% endblock %}
+{% block head_extra %}
+  <script type="application/ld+json">{{ jsonld|tojson }}</script>
+{% endblock %}
 {% block content %}
 <section class="bg-slate-950/90">
   <div class="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:px-8">
@@ -14,29 +21,37 @@
         <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">
           {{ product.name }}
         </h1>
-        {% set img_path = product.image_path or product.image %}
-        <div class="mt-4 mb-4 h-56 w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
-          {% if img_path %}
-            {% if img_path.startswith('/static/') %}
-              <img src="{{ img_path }}" alt="{{ product.name }}" class="h-full w-full object-cover">
-            {% else %}
-              <img src="{{ url_for('static', filename=img_path) }}" alt="{{ product.name }}" class="h-full w-full object-cover">
-            {% endif %}
-          {% else %}
-            <div class="flex h-full w-full min-h-[14rem] items-center justify-center bg-slate-800/90 px-4 text-center text-sm text-slate-500">{{ t('listing_no_image') }}</div>
-          {% endif %}
-        </div>
+        {% if product.review_count %}
+          <a href="#reviews" class="mt-1 inline-block hover:opacity-80">{{ rating_stars(product.avg_rating, product.review_count, "text-xs") }}</a>
+        {% endif %}
+        {{ product_image(product, "mt-4 mb-4 h-56 w-full overflow-hidden rounded-2xl border border-slate-800 bg-slate-900", "flex h-full w-full min-h-[14rem] items-center justify-center bg-slate-800/90 px-4 text-center text-sm text-slate-500") }}
         <p class="mt-2 text-sm text-slate-300">
           {{ product.description }}
         </p>
-        <p class="mt-5 text-xl font-semibold text-brandOrange">
-          {{ format_product_price(product) }}
-        </p>
-        <form method="post" action="{{ url_for('add_to_cart', product_id=product.id) }}" class="mt-5">
-          <button class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-6 py-2.5 text-sm font-semibold text-black">
-            {{ t('add_to_cart') }}
-          </button>
-        </form>
+        <div class="mt-5 flex items-center gap-3">
+          <p class="text-xl font-semibold text-brandOrange">
+            {{ format_product_price(product) }}
+          </p>
+          {{ stock_badge(product) }}
+        </div>
+        <div class="mt-5 flex items-center gap-3">
+          {{ cart_button(product, "rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-6 py-2.5 text-sm font-semibold text-black") }}
+          {{ favorite_button(product) }}
+        </div>
+        {% if (product.stock or 0) <= 0 %}
+          <form method="post" action="{{ url_for('shop.stock_alert', product_id=product.id) }}" class="mt-5 space-y-2 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm">
+            {{ csrf_field() }}
+            <p class="text-xs font-semibold text-slate-100">{{ t('stock_alert_title') }}</p>
+            <p class="text-[11px] text-slate-400">{{ t('stock_alert_intro') }}</p>
+            <div class="flex flex-wrap gap-2">
+              <label for="stock-alert-email" class="sr-only">{{ t('checkout_email') }}</label>
+              <input id="stock-alert-email" type="email" name="email" required maxlength="254" autocomplete="email"
+                     value="{{ current_user.email if current_user else '' }}"
+                     class="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none">
+              <button class="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-200 hover:border-brandOrange hover:text-brandOrange">{{ t('stock_alert_button') }}</button>
+            </div>
+          </form>
+        {% endif %}
       </div>
       <div class="space-y-4">
         <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-xs text-slate-400">
@@ -49,7 +64,81 @@
         </div>
       </div>
     </div>
+
+    <section id="reviews" class="mt-12 scroll-mt-6">
+      <div class="flex flex-wrap items-center gap-3">
+        <h2 class="text-lg font-semibold text-slate-50">{{ t('reviews_title') }}</h2>
+        {{ rating_stars(product.avg_rating, product.review_count, "text-sm") }}
+      </div>
+
+      <div class="mt-4">
+        {% if not current_user %}
+          <p class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">
+            {{ t('review_signin_prompt') }}
+            <a href="{{ url_for('account.signin') }}" class="text-brandOrange hover:text-amber-200">{{ t('nav_sign_in') }}</a>
+          </p>
+        {% elif can_review %}
+          <form method="post" action="{{ url_for('shop.submit_review', product_id=product.id) }}" class="space-y-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-sm">
+            {{ csrf_field() }}
+            <h3 class="text-sm font-semibold text-slate-100">{{ t('review_edit') if user_review else t('review_write') }}</h3>
+            <div>
+              <label for="review-rating" class="mb-1 block text-xs font-medium text-slate-300">{{ t('review_rating') }}</label>
+              <select id="review-rating" name="rating" required class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-amber-300 focus:border-brandOrange focus:outline-none">
+                {% for n in range(5, 0, -1) %}
+                  <option value="{{ n }}" {% if (user_review.rating if user_review else 5) == n %}selected{% endif %}>{{ '★' * n }}{{ '☆' * (5 - n) }} ({{ n }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div>
+              <label for="review-body" class="mb-1 block text-xs font-medium text-slate-300">{{ t('review_body') }}</label>
+              <textarea id="review-body" name="body" rows="4" minlength="{{ review_limits[0] }}" maxlength="{{ review_limits[1] }}" required class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">{{ user_review.body if user_review else '' }}</textarea>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+              <button type="submit" class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-5 py-2 text-xs font-semibold text-black">{{ t('review_submit') }}</button>
+              {% if user_review and user_review.status == 'hidden' %}
+                <span class="text-[11px] text-amber-300">{{ t('review_hidden_note') }}</span>
+              {% endif %}
+            </div>
+          </form>
+          {% if user_review %}
+            <form method="post" action="{{ url_for('shop.delete_review', product_id=product.id) }}" class="mt-2" data-confirm="{{ t('review_delete_confirm') }}">
+              {{ csrf_field() }}
+              <button class="text-[11px] text-slate-500 hover:text-red-300">{{ t('review_delete') }}</button>
+            </form>
+          {% endif %}
+        {% else %}
+          <p class="rounded-xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs text-slate-400">{{ t('review_not_eligible') }}</p>
+        {% endif %}
+      </div>
+
+      <ul class="mt-6 space-y-4">
+        {% for r in reviews %}
+          <li class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="text-amber-300" aria-hidden="true">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+              <span class="sr-only">{{ t('rating_sr').format(avg=r.rating) }}</span>
+              <span class="font-semibold text-slate-100">{{ r.reviewer_name }}</span>
+              <span class="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-300">{{ t('review_verified') }}</span>
+              <span class="text-slate-500">{{ r.created_at.strftime('%Y-%m-%d') if r.created_at else '' }}</span>
+            </div>
+            <p class="mt-2 whitespace-pre-line text-sm text-slate-300">{{ r.body }}</p>
+          </li>
+        {% else %}
+          <li class="text-sm text-slate-500">{{ t('reviews_empty') }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if related %}
+      <section class="mt-12">
+        <h2 class="text-lg font-semibold text-slate-50">{{ t('related_title') }}</h2>
+        <div class="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {% for product in related %}
+            {{ product_card(product) }}
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
   </div>
 </section>
 {% endblock %}
-

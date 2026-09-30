@@ -1,0 +1,31 @@
+{% extends "emails/_layout.html" %}
+{% block body %}
+  <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;">{{ t('order_confirmation_heading') }}</h1>
+  <p style="margin:0 0 16px;color:#cbd5e1;">{{ t('email_order_intro') }}</p>
+  <p style="margin:0 0 8px;color:#94a3b8;">{{ t('order_number_label') }}: <strong style="color:#f8fafc;">#{{ order.id }}</strong></p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0;border-collapse:collapse;font-size:13px;">
+    {% for item in order.line_items %}
+      <tr>
+        <td style="padding:6px 0;border-bottom:1px solid #1f2937;color:#e2e8f0;">{{ item.display_name }}</td>
+        <td style="padding:6px 0;border-bottom:1px solid #1f2937;color:#94a3b8;text-align:right;">{{ item.quantity }} × ${{ "%.2f"|format(item.price) }}</td>
+      </tr>
+    {% endfor %}
+    {% if order.discount_usd %}
+      <tr>
+        <td style="padding:6px 0;color:#6ee7b7;">{{ t('cart_discount').format(code=order.coupon_code) }}</td>
+        <td style="padding:6px 0;color:#6ee7b7;text-align:right;">−${{ "%.2f"|format(order.discount_usd) }}</td>
+      </tr>
+    {% endif %}
+    <tr>
+      <td style="padding:10px 0 0;font-weight:bold;color:#f8fafc;">{{ t('order_total_label') }}</td>
+      <td style="padding:10px 0 0;font-weight:bold;color:#f97316;text-align:right;">${{ "%.2f"|format(order.total_price) }}</td>
+    </tr>
+  </table>
+  <p style="margin:20px 0 8px;">
+    <a href="{{ payment_url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('email_pay_cta') }}</a>
+  </p>
+  <p style="margin:8px 0 0;">
+    <a href="{{ track_url }}" style="color:#f97316;">{{ t('track_order_cta') }} →</a>
+  </p>
+  <p style="margin:16px 0 0;font-size:12px;color:#64748b;">{{ t('email_track_hint') }}</p>
+{% endblock %}

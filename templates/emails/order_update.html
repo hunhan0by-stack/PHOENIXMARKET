@@ -1,0 +1,18 @@
+{% extends "emails/_layout.html" %}
+{% block body %}
+  <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;">{{ t('email_update_subject').format(id=order.id) }}</h1>
+  <p style="margin:0 0 16px;color:#cbd5e1;">{{ t('email_update_intro') }}</p>
+  {% if 'status_changed' in changes %}
+    <p style="margin:0 0 8px;">{{ t('timeline_status').format(status=t('status_' ~ order.fulfillment_status)) }}</p>
+  {% endif %}
+  {% if 'tracking_updated' in changes and order.tracking_number %}
+    <p style="margin:0 0 8px;">{{ t('timeline_tracking').format(number=order.tracking_number) }}</p>
+  {% endif %}
+  {% if 'customer_note' in changes and order.carrier_note %}
+    <p style="margin:12px 0 4px;color:#94a3b8;">{{ t('carrier_note_label') }}</p>
+    <p style="margin:0 0 8px;white-space:pre-line;">{{ order.carrier_note }}</p>
+  {% endif %}
+  <p style="margin:20px 0 0;">
+    <a href="{{ track_url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('track_order_cta') }}</a>
+  </p>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import pagination with context %}
+{% block title %}{{ t('adm_emails') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_admin') }}</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">{{ t('adm_emails') }}</h1>
+        <p class="mt-1 text-sm text-slate-400">{{ t('adm_emails_intro') }}</p>
+      </div>
+      <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-brandOrange hover:text-amber-200">{{ t('adm_back_dashboard') }}</a>
+    </div>
+
+    {% if smtp_enabled %}
+      <p class="mt-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-xs text-emerald-200">
+        {{ t('adm_smtp_on') }}
+      </p>
+    {% else %}
+      <p class="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200">
+        {{ t('adm_smtp_off') }}
+      </p>
+    {% endif %}
+
+    <div class="mt-6 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
+      <table class="min-w-full divide-y divide-slate-800">
+        <thead class="bg-slate-950/80 text-slate-400">
+          <tr>
+            <th class="px-3 py-2 text-left">{{ t('adm_date') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_to') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_subject') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_type') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_status') }}</th>
+            <th class="px-3 py-2 text-right"></th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800 text-slate-200">
+          {% for e in emails %}
+            <tr>
+              <td class="px-3 py-2 text-slate-400">{{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '—' }}</td>
+              <td class="px-3 py-2">{{ e.to_address }}</td>
+              <td class="px-3 py-2">{{ e.subject }}</td>
+              <td class="px-3 py-2 text-slate-400">{{ t('adm_email_kind_' ~ e.kind) if e.kind else '—' }}</td>
+              <td class="px-3 py-2">
+                {% set colors = {'sent': 'text-emerald-300', 'failed': 'text-red-400', 'queued': 'text-amber-300', 'logged': 'text-slate-400'} %}
+                <span class="{{ colors.get(e.status, 'text-slate-300') }}">{{ t('adm_email_status_' ~ e.status) }}</span>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <a href="{{ url_for('admin.email_detail', email_id=e.id) }}" class="text-brandOrange hover:text-amber-200">{{ t('adm_view') }}</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="px-3 py-8 text-center text-slate-500">{{ t('adm_no_emails') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {{ pagination(page, 'admin.emails') }}
+  </div>
+</section>
+{% endblock %}

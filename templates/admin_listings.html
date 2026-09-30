@@ -1,43 +1,43 @@
 {% extends "base.html" %}
-{% block title %}Admin Listings – PHOENIXMARKET{% endblock %}
+{% block title %}{{ t('adm_listings') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
 {% block content %}
 <section class="bg-slate-950/90">
   <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">
-          Admin / Listings
+          {{ t('adm_breadcrumb_listings') }}
         </p>
         <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-          Manage marketplace listings
+          {{ t('adm_listings_title') }}
         </h1>
         <p class="mt-1 text-sm text-slate-400">
-          Create, edit, and remove PHOENIXMARKET services from the catalog.
+          {{ t('adm_listings_intro') }}
         </p>
       </div>
-      <a href="{{ url_for('admin_new_listing') }}" class="inline-flex rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-xs font-semibold text-black">
-        Add new listing
+      <a href="{{ url_for('admin.new_listing') }}" class="inline-flex rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-xs font-semibold text-black">
+        {{ t('adm_add_listing') }}
       </a>
     </div>
 
     <form method="get" class="mt-6 grid gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px] md:grid-cols-5">
       <div class="md:col-span-2">
-        <label class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Search</label>
-        <input
+        <label for="f-q" class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{{ t('adm_search') }}</label>
+        <input id="f-q"
           type="text"
           name="q"
           value="{{ current_q or '' }}"
-          placeholder="Search by title or description"
+          placeholder="{{ t('adm_search_listings_placeholder') }}"
           class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none"
         >
       </div>
       <div>
-        <label class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Category</label>
-        <select
+        <label for="f-category" class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{{ t('admin_category') }}</label>
+        <select id="f-category"
           name="category"
           class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none"
         >
-          <option value="">All</option>
+          <option value="">{{ t('adm_all') }}</option>
           {% for cat in categories %}
             <option value="{{ cat }}" {% if current_category == cat|lower %}selected{% endif %}>
               {{ cat }}
@@ -46,25 +46,25 @@
         </select>
       </div>
       <div>
-        <label class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Status</label>
-        <select
+        <label for="f-status" class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{{ t('adm_status') }}</label>
+        <select id="f-status"
           name="status"
           class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none"
         >
-          <option value="">All</option>
-          <option value="active" {% if current_status == 'active' %}selected{% endif %}>Active</option>
-          <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>Inactive</option>
+          <option value="">{{ t('adm_all') }}</option>
+          <option value="active" {% if current_status == 'active' %}selected{% endif %}>{{ t('admin_status_active') }}</option>
+          <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>{{ t('admin_status_inactive') }}</option>
         </select>
       </div>
       <div>
-        <label class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">Language</label>
-        <select
+        <label for="f-lang" class="mb-1 block text-[10px] font-medium uppercase tracking-wide text-slate-400">{{ t('adm_language') }}</label>
+        <select id="f-lang"
           name="lang"
           class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none"
         >
-          <option value="">All</option>
-          <option value="en" {% if current_lang == 'en' %}selected{% endif %}>English</option>
-          <option value="tr" {% if current_lang == 'tr' %}selected{% endif %}>Turkish</option>
+          <option value="">{{ t('adm_all') }}</option>
+          <option value="en" {% if current_lang == 'en' %}selected{% endif %}>{{ t('adm_english') }}</option>
+          <option value="tr" {% if current_lang == 'tr' %}selected{% endif %}>{{ t('adm_turkish') }}</option>
         </select>
       </div>
     </form>
@@ -73,17 +73,17 @@
       <table class="min-w-full divide-y divide-slate-800">
         <thead class="bg-slate-950/80 text-slate-300">
           <tr>
-            <th class="px-3 py-2 text-left">ID</th>
-            <th class="px-3 py-2 text-left">Image</th>
-            <th class="px-3 py-2 text-left">Title</th>
-            <th class="px-3 py-2 text-left">Category</th>
-            <th class="px-3 py-2 text-left">Price</th>
-            <th class="px-3 py-2 text-left">Lang</th>
-            <th class="px-3 py-2 text-left">Stock</th>
-            <th class="px-3 py-2 text-left">Status</th>
-            <th class="px-3 py-2 text-left">Created</th>
-            <th class="px-3 py-2 text-left">Updated</th>
-            <th class="px-3 py-2 text-right">Actions</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_id') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_image') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_title') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('admin_category') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_price') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_lang_short') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('admin_stock') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_status') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_created') }}</th>
+            <th class="px-3 py-2 text-left">{{ t('adm_updated') }}</th>
+            <th class="px-3 py-2 text-right">{{ t('adm_actions') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-800">
@@ -91,13 +91,9 @@
             <tr>
               <td class="px-3 py-2 text-slate-400">{{ product.id }}</td>
               <td class="px-3 py-2">
-                {% set img_path = product.image_path or product.image %}
-                {% if img_path %}
-                  {% if img_path.startswith('/static/') %}
-                    <img src="{{ img_path }}" alt="{{ product.name }}" class="h-8 w-8 rounded-md object-cover">
-                  {% else %}
-                    <img src="{{ url_for('static', filename=img_path) }}" alt="{{ product.name }}" class="h-8 w-8 rounded-md object-cover">
-                  {% endif %}
+                {% set img_url = product_image_url(product) %}
+                {% if img_url %}
+                  <img src="{{ img_url }}" alt="{{ product.name }}" class="h-8 w-8 rounded-md object-cover" loading="lazy">
                 {% else %}
                   <div class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-800 text-[8px] font-medium leading-tight text-slate-500 text-center p-0.5" title="{{ t('listing_no_image') }}">—</div>
                 {% endif %}
@@ -108,7 +104,12 @@
               <td class="px-3 py-2 text-slate-300">{{ product.category }}</td>
               <td class="px-3 py-2 text-slate-100">{{ "%.2f"|format(product.base_price or product.price or 0) }} {{ product.base_currency or 'USD' }}</td>
               <td class="px-3 py-2 text-slate-300"><span class="rounded bg-slate-700 px-1.5 py-0.5 text-[10px]">{{ product.listing_language or 'en'|upper }}</span></td>
-              <td class="px-3 py-2 text-slate-100">{{ product.stock }}</td>
+              <td class="px-3 py-2 font-semibold {% if (product.stock or 0) <= 0 %}text-red-400{% elif product.stock <= LOW_STOCK_THRESHOLD %}text-amber-300{% else %}text-slate-100{% endif %}">
+                {{ product.stock }}
+                {% if stock_alerts.get(product.id) %}
+                  <span class="ml-1 whitespace-nowrap text-[10px] font-normal text-slate-400" title="{{ t('adm_waiting_alerts') }}">🔔 {{ stock_alerts[product.id] }}</span>
+                {% endif %}
+              </td>
               <td class="px-3 py-2">
                 <span class="rounded-full px-2 py-0.5 text-[10px]
                   {% if product.status == 'active' %}
@@ -117,7 +118,7 @@
                     bg-slate-700/40 text-slate-200 border border-slate-600
                   {% endif %}
                 ">
-                  {{ product.status|capitalize }}
+                  {{ t('admin_status_' ~ product.status) }}
                 </span>
               </td>
               <td class="px-3 py-2 text-slate-400">
@@ -131,23 +132,24 @@
                 {% endif %}
               </td>
               <td class="px-3 py-2 text-right text-slate-300 space-x-2">
-                <a href="{{ url_for('product_detail', slug_or_id=product.slug) }}" class="text-slate-400 hover:text-slate-100">
-                  View
+                <a href="{{ url_for('shop.product_detail', slug_or_id=product.slug) }}" class="text-slate-400 hover:text-slate-100">
+                  {{ t('adm_view') }}
                 </a>
-                <a href="{{ url_for('admin_edit_listing', product_id=product.id) }}" class="text-brandOrange hover:text-amber-200">
-                  Edit
+                <a href="{{ url_for('admin.edit_listing', product_id=product.id) }}" class="text-brandOrange hover:text-amber-200">
+                  {{ t('adm_edit') }}
                 </a>
-                <form method="post" action="{{ url_for('admin_delete_listing', product_id=product.id) }}" class="inline" onsubmit="return confirm('Delete this listing?');">
+                <form method="post" action="{{ url_for('admin.delete_listing', product_id=product.id) }}" class="inline" data-confirm="{{ t('adm_delete_listing_confirm') }}">
+                  {{ csrf_field() }}
                   <button type="submit" class="text-red-400 hover:text-red-300">
-                    Delete
+                    {{ t('admin_delete') }}
                   </button>
                 </form>
               </td>
             </tr>
           {% else %}
             <tr>
-              <td colspan="7" class="px-3 py-4 text-center text-slate-500">
-                No listings yet. Create your first listing using the “Add new listing” button.
+              <td colspan="11" class="px-3 py-4 text-center text-slate-500">
+                {{ t('adm_no_listings') }}
               </td>
             </tr>
           {% endfor %}

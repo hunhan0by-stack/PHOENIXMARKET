@@ -4,6 +4,22 @@
   <meta charset="UTF-8" />
   <title>{% block title %}PHOENIXMARKET – Digital Services Marketplace{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
+
+  <!-- SEO / social sharing -->
+  <meta name="description" content="{% block meta_description %}{{ site_content.hero_subtitle|truncate(160) }}{% endblock %}" />
+  <link rel="canonical" href="{{ request.base_url }}" />
+  {% if request.path.startswith(('/admin', '/account', '/cart', '/checkout', '/track', '/reset-password')) %}
+    <meta name="robots" content="noindex, nofollow" />
+  {% endif %}
+  <meta property="og:site_name" content="PHOENIXMARKET" />
+  <meta property="og:title" content="{{ self.title() }}" />
+  <meta property="og:description" content="{{ self.meta_description() }}" />
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
+  <meta property="og:url" content="{{ request.base_url }}" />
+  <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/logo.png', _external=True) }}{% endblock %}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  {% block head_extra %}{% endblock %}
 
   <!-- Favicon -->
   <link
@@ -14,7 +30,7 @@
 
   <!-- TailwindCSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
+  <script nonce="{{ csp_nonce() }}">
     tailwind.config = {
       theme: {
         extend: {
@@ -47,27 +63,28 @@
     }
   </style>
 </head>
-<body class="bg-brandBg text-slate-100 font-sans antialiased" data-chat-api-enabled="false">
+<body class="bg-brandBg text-slate-100 font-sans antialiased" data-chat-api-enabled="{{ 'true' if chat_api_enabled else 'false' }}" data-locale="{{ locale }}">
   <div class="min-h-screen flex flex-col">
     <!-- NAVBAR -->
-    <header class="border-b border-slate-800 bg-slate-950/90 backdrop-blur">
+    <header class="relative z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <a href="{{ url_for('index') }}" class="flex items-center gap-3">
+        <a href="{{ url_for('shop.index') }}" class="flex items-center gap-3">
           <img
             src="{{ url_for('static', filename='images/logo.png') }}"
             alt="PHOENIXMARKET"
             class="h-8 max-h-12 w-auto rounded-md"
           >
-          <span class="text-sm font-semibold tracking-[0.28em] text-slate-100 uppercase">
+          {# The wordmark does not fit next to the full menu between 1024 and 1279px. #}
+          <span class="text-sm font-semibold tracking-[0.28em] text-slate-100 uppercase lg:hidden xl:inline">
             PHOENIXMARKET
           </span>
         </a>
 
-        <nav class="hidden items-center gap-4 text-xs font-medium text-slate-300 md:flex">
-          <a href="{{ url_for('index') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_home') }}</a>
-          <a href="{{ url_for('products') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_products') }}</a>
-          <a href="{{ url_for('contact') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_contact') }}</a>
-          <form method="get" action="{{ url_for('search') }}" class="relative">
+        <nav class="hidden items-center gap-4 whitespace-nowrap text-xs font-medium text-slate-300 lg:flex">
+          <a href="{{ url_for('shop.index') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_home') }}</a>
+          <a href="{{ url_for('shop.products') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_products') }}</a>
+          <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_contact') }}</a>
+          <form method="get" action="{{ url_for('shop.search') }}" class="relative">
             <input
               type="text"
               name="q"
@@ -77,17 +94,17 @@
             >
           </form>
           <div class="flex items-center gap-1 border-l border-r border-slate-700 px-2">
-            <span class="text-slate-500 text-[10px]">Lang:</span>
-            <a href="{{ url_for('set_locale', locale='en') }}" class="px-1.5 py-0.5 rounded {{ locale == 'en' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">EN</a>
-            <a href="{{ url_for('set_locale', locale='tr') }}" class="px-1.5 py-0.5 rounded {{ locale == 'tr' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">TR</a>
+            <span class="text-slate-500 text-[10px]">{{ t('nav_lang_label') }}</span>
+            <a href="{{ url_for('shop.set_locale', locale='en') }}" class="px-1.5 py-0.5 rounded {{ locale == 'en' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">EN</a>
+            <a href="{{ url_for('shop.set_locale', locale='tr') }}" class="px-1.5 py-0.5 rounded {{ locale == 'tr' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">TR</a>
           </div>
           <div class="flex items-center gap-1">
-            <span class="text-slate-500 text-[10px]">Currency:</span>
-            <a href="{{ url_for('set_currency', currency='TRY') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'TRY' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">₺</a>
-            <a href="{{ url_for('set_currency', currency='USD') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'USD' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">$</a>
-            <a href="{{ url_for('set_currency', currency='EUR') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'EUR' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">€</a>
+            <span class="text-slate-500 text-[10px]">{{ t('nav_currency_label') }}</span>
+            <a href="{{ url_for('shop.set_currency', currency='TRY') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'TRY' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">₺</a>
+            <a href="{{ url_for('shop.set_currency', currency='USD') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'USD' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">$</a>
+            <a href="{{ url_for('shop.set_currency', currency='EUR') }}" class="px-1.5 py-0.5 rounded text-[10px] {{ currency == 'EUR' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">€</a>
           </div>
-          <a href="{{ url_for('cart') }}" class="relative hover:text-brandOrange transition-colors">
+          <a href="{{ url_for('orders.cart') }}" class="relative hover:text-brandOrange transition-colors">
             {{ t('nav_cart') }}
             {% if cart_count %}
               <span class="absolute -right-3 -top-2 rounded-full bg-brandRed px-1.5 text-[10px] font-semibold text-black">
@@ -95,29 +112,87 @@
               </span>
             {% endif %}
           </a>
-          {% if session.get('is_admin') %}
-            <a href="{{ url_for('admin_dashboard') }}" class="hover:text-brandOrange transition-colors">
+          {% if is_admin %}
+            <a href="{{ url_for('admin.dashboard') }}" class="hover:text-brandOrange transition-colors">
               {{ t('nav_admin_panel') }}
             </a>
-          {% else %}
-            <a href="{{ url_for('admin_login') }}" class="hover:text-brandOrange transition-colors">
-              {{ t('nav_admin_login') }}
-            </a>
           {% endif %}
-          {% if session.get('user') %}
-            <a href="{{ url_for('account') }}" class="hover:text-brandOrange transition-colors">
+          {% if current_user %}
+            <a href="{{ url_for('account.profile') }}" class="hover:text-brandOrange transition-colors">
               {{ t('nav_account') }}
             </a>
-            <a href="{{ url_for('signout') }}" class="text-slate-400 hover:text-brandOrange transition-colors">
+            <a href="{{ url_for('account.signout') }}" class="text-slate-400 hover:text-brandOrange transition-colors">
               {{ t('nav_logout') }}
             </a>
           {% else %}
-            <a href="{{ url_for('signin') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_sign_in') }}</a>
-            <a href="{{ url_for('signup') }}" class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black">
+            <a href="{{ url_for('account.signin') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_sign_in') }}</a>
+            <a href="{{ url_for('account.signup') }}" class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black">
               {{ t('nav_sign_up') }}
             </a>
           {% endif %}
         </nav>
+
+        <!-- COMPACT NAV (below lg) -->
+        <div class="flex items-center gap-3 lg:hidden">
+          <a href="{{ url_for('orders.cart') }}" class="relative text-xs text-slate-300 hover:text-brandOrange" aria-label="{{ t('nav_cart') }}">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 0 0-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 0 0-16.536-1.84M7.5 14.25 5.106 5.272M6 20.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Zm12.75 0a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" /></svg>
+            {% if cart_count %}
+              <span class="absolute -right-2 -top-2 rounded-full bg-brandRed px-1.5 text-[10px] font-semibold text-black">{{ cart_count }}</span>
+            {% endif %}
+          </a>
+          <details class="group relative">
+            <summary class="flex cursor-pointer list-none items-center rounded-md border border-slate-700 p-1.5 text-slate-200 hover:border-brandOrange [&::-webkit-details-marker]:hidden" aria-label="{{ t('nav_menu') }}">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-open:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-5 w-5 group-open:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </summary>
+            <div class="absolute right-0 z-50 mt-2 w-64 space-y-3 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 shadow-2xl shadow-black/70">
+              <form method="get" action="{{ url_for('shop.search') }}">
+                <input
+                  type="text"
+                  name="q"
+                  value="{{ request.args.get('q', '') }}"
+                  placeholder="{{ t('nav_search_placeholder') }}"
+                  class="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brandOrange focus:outline-none"
+                >
+              </form>
+              <nav class="flex flex-col gap-2 border-b border-slate-800 pb-3">
+                <a href="{{ url_for('shop.index') }}" class="hover:text-brandOrange">{{ t('nav_home') }}</a>
+                <a href="{{ url_for('shop.products') }}" class="hover:text-brandOrange">{{ t('nav_products') }}</a>
+                <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange">{{ t('nav_contact') }}</a>
+                <a href="{{ url_for('orders.cart') }}" class="hover:text-brandOrange">{{ t('nav_cart') }}{% if cart_count %} ({{ cart_count }}){% endif %}</a>
+              </nav>
+              <nav class="flex flex-col gap-2 border-b border-slate-800 pb-3">
+                {% if current_user %}
+                  <a href="{{ url_for('account.profile') }}" class="hover:text-brandOrange">{{ t('nav_account') }}</a>
+                  <a href="{{ url_for('account.favorites') }}" class="hover:text-brandOrange">♥ {{ t('favorites_title') }}</a>
+                  <a href="{{ url_for('account.signout') }}" class="text-slate-400 hover:text-brandOrange">{{ t('nav_logout') }}</a>
+                {% else %}
+                  <a href="{{ url_for('account.signin') }}" class="hover:text-brandOrange">{{ t('nav_sign_in') }}</a>
+                  <a href="{{ url_for('account.signup') }}" class="hover:text-brandOrange">{{ t('nav_sign_up') }}</a>
+                {% endif %}
+                {% if is_admin %}
+                  <a href="{{ url_for('admin.dashboard') }}" class="hover:text-brandOrange">{{ t('nav_admin_panel') }}</a>
+                  <a href="{{ url_for('admin.logout') }}" class="text-slate-400 hover:text-brandOrange">{{ t('nav_admin_logout') }}</a>
+                {% else %}
+                  <a href="{{ url_for('admin.login') }}" class="text-slate-400 hover:text-brandOrange">{{ t('nav_admin_login') }}</a>
+                {% endif %}
+              </nav>
+              <div class="flex items-center justify-between text-xs">
+                <span class="flex items-center gap-1">
+                  <span class="text-slate-500">{{ t('nav_lang_label') }}</span>
+                  {% for loc in SUPPORTED_LOCALES %}
+                    <a href="{{ url_for('shop.set_locale', locale=loc) }}" class="rounded px-1.5 py-0.5 {{ locale == loc and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">{{ loc|upper }}</a>
+                  {% endfor %}
+                </span>
+                <span class="flex items-center gap-1">
+                  {% for cur, sym in [('TRY', '₺'), ('USD', '$'), ('EUR', '€')] %}
+                    <a href="{{ url_for('shop.set_currency', currency=cur) }}" class="rounded px-1.5 py-0.5 {{ currency == cur and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">{{ sym }}</a>
+                  {% endfor %}
+                </span>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     </header>
 
@@ -152,8 +227,13 @@
           <span>{{ t('footer_rights') }}</span>
         </div>
         <div class="flex flex-wrap items-center gap-4">
-          <a href="{{ url_for('contact') }}" class="hover:text-brandOrange">{{ site_content.footer_contact_text }}</a>
+          <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange">{{ site_content.footer_contact_text }}</a>
           <span>{{ site_content.footer_discord_text }}</span>
+          {% if is_admin %}
+            <a href="{{ url_for('admin.logout') }}" class="hover:text-brandOrange">{{ t('nav_admin_logout') }}</a>
+          {% else %}
+            <a href="{{ url_for('admin.login') }}" class="hover:text-brandOrange">{{ t('nav_admin_login') }}</a>
+          {% endif %}
         </div>
       </div>
     </footer>
@@ -162,7 +242,8 @@
   <!-- Support chat widget -->
   <div id="pm-chat-root"></div>
 
-  <!-- Chat script -->
+  <!-- Page helpers and chat -->
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>

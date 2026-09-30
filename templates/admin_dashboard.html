@@ -1,136 +1,259 @@
 {% extends "base.html" %}
-{% block title %}Admin Dashboard – PHOENIXMARKET{% endblock %}
+{% block title %}{{ t('adm_dashboard_title') }} – PHOENIXMARKET{% endblock %}
 {% block content %}
 <section class="bg-slate-950/90">
   <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
     <div class="grid gap-6 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <div class="space-y-3">
         <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">
-          Admin
+          {{ t('adm_admin') }}
         </p>
         <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-          Operations dashboard
+          {{ t('adm_dashboard_title') }}
         </h1>
         <p class="mt-1 text-sm text-slate-400">
-          High-level overview of marketplace activity and management tools.
+          {{ t('adm_dashboard_intro') }}
         </p>
       </div>
-      <nav class="grid gap-2 text-[11px] text-slate-200">
-        <a href="{{ url_for('admin_orders') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
-          <span>Orders</span>
-          <span class="text-slate-500">Tracking & fulfillment</span>
+      <nav class="grid gap-2 text-[11px] text-slate-200" aria-label="{{ t('adm_admin') }}">
+        <a href="{{ url_for('admin.orders') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_orders') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_orders') }}</span>
         </a>
-        <a href="{{ url_for('admin_listings') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
-          <span>Listings</span>
-          <span class="text-slate-500">Create / edit / delete</span>
+        <a href="{{ url_for('admin.messages') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_support_inbox') }}
+            {% if open_messages %}<span class="ml-1 rounded-full bg-brandRed px-1.5 text-[10px] font-semibold text-black">{{ open_messages }}</span>{% endif %}
+          </span>
+          <span class="text-slate-500">{{ t('adm_tile_messages') }}</span>
         </a>
-        <a href="{{ url_for('admin_categories') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
-          <span>Categories</span>
-          <span class="text-slate-500">Structure marketplace</span>
+        <a href="{{ url_for('admin.listings') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_listings') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_listings') }}</span>
         </a>
-        <a href="{{ url_for('admin_content') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
-          <span>Content</span>
-          <span class="text-slate-500">Homepage & texts</span>
+        <a href="{{ url_for('admin.categories') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_categories') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_categories') }}</span>
         </a>
-        <a href="{{ url_for('admin_settings') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
-          <span>Settings</span>
-          <span class="text-slate-500">Links & checkout</span>
+        <a href="{{ url_for('admin.content') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_content') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_content') }}</span>
+        </a>
+        <a href="{{ url_for('admin.settings') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_settings') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_settings') }}</span>
+        </a>
+        <a href="{{ url_for('admin.coupons_list') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_coupons') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_coupons') }}</span>
+        </a>
+        <a href="{{ url_for('admin.reviews') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_reviews') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_reviews') }}</span>
+        </a>
+        <a href="{{ url_for('admin.emails') }}" class="inline-flex items-center justify-between rounded-full border border-slate-800 bg-slate-950/80 px-4 py-2 hover:border-brandOrange hover:text-brandOrange">
+          <span>{{ t('adm_emails') }}</span>
+          <span class="text-slate-500">{{ t('adm_tile_emails') }}</span>
         </a>
       </nav>
     </div>
 
     <div class="mt-8 grid gap-6 md:grid-cols-3">
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-        <p class="text-xs text-slate-400">Products (active / total)</p>
+        <p class="text-xs text-slate-400">{{ t('adm_products_active_total') }}</p>
         <p class="mt-1 text-2xl font-semibold text-slate-50">
           {{ active_products }} / {{ total_products }}
         </p>
       </div>
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-        <p class="text-xs text-slate-400">Orders</p>
+        <p class="text-xs text-slate-400">{{ t('adm_orders') }}</p>
         <p class="mt-1 text-2xl font-semibold text-slate-50">
           {{ total_orders }}
         </p>
         <p class="mt-1 text-[11px] text-slate-500">
-          Stored in SQLite. Use Orders to update status and tracking.
+          {{ t('adm_orders_card_hint') }}
         </p>
       </div>
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-        <p class="text-xs text-slate-400">Users</p>
+        <p class="text-xs text-slate-400">{{ t('adm_customer_accounts') }}</p>
         <p class="mt-1 text-2xl font-semibold text-slate-50">
-          —
+          {{ total_users }}
         </p>
         <p class="mt-1 text-[11px] text-slate-500">
-          User analytics will be added here when authentication is backed by a database.
+          {{ t('adm_accounts_card_hint') }}
         </p>
+      </div>
+    </div>
+
+    <div class="mt-10" id="sales">
+      <div class="flex flex-wrap items-end justify-between gap-2">
+        <h2 class="text-sm font-semibold text-slate-100">{{ t('adm_sales_last_days').format(n=sales.days) }}</h2>
+        <p class="text-[11px] text-slate-500">{{ t('adm_sales_note') }}</p>
+      </div>
+      <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {% for label, value, hint in [
+          (t('adm_orders'), sales.orders, ''),
+          (t('adm_order_value'), '$%.2f'|format(sales.value), ''),
+          (t('adm_completed_revenue'), '$%.2f'|format(sales.completed_revenue), t('adm_completed_revenue_hint')),
+          (t('adm_average_order'), '$%.2f'|format(sales.average_order), ''),
+          (t('adm_conversion'), '%.1f%%'|format(sales.conversion), t('adm_conversion_hint').format(n=sales.visitors)),
+          (t('adm_discounts_given'), '$%.2f'|format(sales.discount), t('adm_discounts_hint')),
+        ] %}
+          <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
+            <p class="text-[11px] text-slate-400">{{ label }}</p>
+            <p class="mt-1 text-lg font-semibold text-slate-50">{{ value }}</p>
+            {% if hint %}<p class="text-[10px] text-slate-500">{{ hint }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="mt-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+        <p class="mb-2 text-[11px] text-slate-400">{{ t('adm_order_value_per_day') }}</p>
+        {% set chart_w, chart_h = 600, 140 %}
+        {% set bar_w = chart_w / (sales.series|length) %}
+        <svg viewBox="0 0 {{ chart_w }} {{ chart_h + 20 }}" class="h-44 w-full" role="img"
+             aria-label="{{ t('adm_chart_aria').format(n=sales.days, total="%.2f"|format(sales.value)) }}">
+          <line x1="0" y1="{{ chart_h }}" x2="{{ chart_w }}" y2="{{ chart_h }}" stroke="#334155" stroke-width="1" />
+          {% for d in sales.series %}
+            {% set bar_h = (d.value / sales.max_value * (chart_h - 10)) if sales.max_value else 0 %}
+            {% if bar_h > 0 %}
+              <rect x="{{ loop.index0 * bar_w + 1 }}" y="{{ chart_h - bar_h }}" width="{{ bar_w - 2 }}" height="{{ bar_h }}" rx="2" fill="#f97316" fill-opacity="0.85">
+                <title>{{ d.date }}: ${{ "%.2f"|format(d.value) }} · {{ t('adm_orders_n').format(n=d.orders) }}</title>
+              </rect>
+            {% endif %}
+            {% if loop.index0 % 5 == 0 or loop.last %}
+              <text x="{{ loop.index0 * bar_w + bar_w / 2 }}" y="{{ chart_h + 14 }}" text-anchor="middle" fill="#64748b" font-size="9">{{ d.date[5:] }}</text>
+            {% endif %}
+          {% endfor %}
+        </svg>
+      </div>
+
+      <div class="mt-4 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px]">
+          <p class="mb-2 text-slate-400">{{ t('adm_top_services') }}</p>
+          {% if sales.top_products %}
+            <table class="min-w-full">
+              <tbody class="divide-y divide-slate-800">
+                {% for p in sales.top_products %}
+                  <tr>
+                    <td class="py-1.5 text-slate-100">{{ p.name }}</td>
+                    <td class="py-1.5 text-right text-slate-400">× {{ p.quantity }}</td>
+                    <td class="py-1.5 text-right font-semibold text-brandOrange">${{ "%.2f"|format(p.gross) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% else %}
+            <p class="text-slate-500">{{ t('adm_no_orders_period') }}</p>
+          {% endif %}
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px]">
+          <p class="mb-2 text-slate-400">{{ t('adm_orders_by_status') }}</p>
+          <ul class="space-y-1">
+            {% for s in ('pending', 'processing', 'completed', 'cancelled') %}
+              <li class="flex justify-between">
+                <a href="{{ url_for('admin.orders', status=s) }}" class="text-slate-200 hover:text-brandOrange">{{ t('status_' ~ s) }}</a>
+                <span class="text-slate-400">{{ status_counts.get(s, 0) }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-10">
+      <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('admin_low_stock') }} (≤ {{ LOW_STOCK_THRESHOLD }})</h2>
+      <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px]">
+        {% if low_stock_products %}
+          <ul class="divide-y divide-slate-800">
+            {% for p in low_stock_products %}
+              <li class="flex items-center justify-between py-2">
+                <span class="text-slate-100">{{ p.name }}
+                  {% if p.status != 'active' %}<span class="text-slate-500">({{ t('admin_status_inactive') }})</span>{% endif %}
+                </span>
+                <span class="flex items-center gap-3">
+                  <span class="font-semibold {{ 'text-red-400' if p.stock <= 0 else 'text-amber-300' }}">{{ p.stock }}</span>
+                  <a href="{{ url_for('admin.edit_listing', product_id=p.id) }}" class="text-brandOrange hover:text-amber-200">{{ t('admin_edit_listing') }}</a>
+                </span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-slate-500">{{ t('admin_low_stock_empty') }}</p>
+        {% endif %}
       </div>
     </div>
 
     {% if analytics %}
     <div class="mt-10">
-      <h2 class="text-sm font-semibold text-slate-100 mb-3">Visitor analytics</h2>
+      <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('adm_visitor_analytics') }}</h2>
       <div class="grid gap-4 md:grid-cols-3 mb-6">
         <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-          <p class="text-xs text-slate-400">Total visitors (unique IPs)</p>
+          <p class="text-xs text-slate-400">{{ t('adm_total_visitors') }}</p>
           <p class="mt-1 text-2xl font-semibold text-slate-50">{{ analytics.total_visitors }}</p>
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-          <p class="text-xs text-slate-400">Total visits (page views)</p>
+          <p class="text-xs text-slate-400">{{ t('adm_total_visits') }}</p>
           <p class="mt-1 text-2xl font-semibold text-slate-50">{{ analytics.total_visits }}</p>
         </div>
         <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-          <p class="text-xs text-slate-400">Today's visits</p>
+          <p class="text-xs text-slate-400">{{ t('adm_today_visits') }}</p>
           <p class="mt-1 text-2xl font-semibold text-slate-50">{{ analytics.today_visits }}</p>
         </div>
       </div>
       {% if analytics.top_pages %}
       <div class="mb-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
-        <p class="text-xs text-slate-400 mb-2">Top visited pages</p>
+        <p class="text-xs text-slate-400 mb-2">{{ t('adm_top_pages') }}</p>
         <ul class="text-[11px] text-slate-300 space-y-1">
           {% for path, count in analytics.top_pages %}
-          <li><span class="text-slate-500 font-mono">{{ path }}</span> — {{ count }} hits</li>
+          <li><span class="text-slate-500 font-mono">{{ path }}</span> — {{ t('adm_hits_n').format(n=count) }}</li>
           {% endfor %}
         </ul>
       </div>
       {% endif %}
-      <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
-        <table class="min-w-full divide-y divide-slate-800">
-          <thead class="bg-slate-950/80 text-slate-300">
-            <tr>
-              <th class="px-3 py-2 text-left">Time</th>
-              <th class="px-3 py-2 text-left">Path / Page</th>
-              <th class="px-3 py-2 text-left">IP / Visitor</th>
-              <th class="px-3 py-2 text-left">User agent</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800">
-            {% for v in analytics.recent_visits %}
-            <tr>
-              <td class="px-3 py-2 text-slate-400">{{ v.ts[:19] if v.ts else '—' }}</td>
-              <td class="px-3 py-2 text-slate-100 font-mono">{{ v.path }}</td>
-              <td class="px-3 py-2 text-slate-300">{{ v.ip }}</td>
-              <td class="px-3 py-2 text-slate-400">{{ v.user_agent_summary }}</td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="4" class="px-3 py-4 text-slate-500 text-center">No visits recorded yet.</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+      <details class="group rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
+        <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-xs text-slate-300 hover:text-brandOrange [&::-webkit-details-marker]:hidden">
+          <span>{{ t('adm_recent_visits') }} ({{ analytics.recent_visits|length }})</span>
+          <span class="text-slate-500 group-open:rotate-180 transition-transform" aria-hidden="true">▾</span>
+        </summary>
+        <div class="overflow-x-auto border-t border-slate-800">
+          <table class="min-w-full divide-y divide-slate-800">
+            <thead class="bg-slate-950/80 text-slate-300">
+              <tr>
+                <th class="px-3 py-2 text-left">{{ t('adm_time') }}</th>
+                <th class="px-3 py-2 text-left">{{ t('adm_path') }}</th>
+                <th class="px-3 py-2 text-left">{{ t('adm_ip') }}</th>
+                <th class="px-3 py-2 text-left">{{ t('adm_user_agent') }}</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800">
+              {% for v in analytics.recent_visits %}
+              <tr>
+                <td class="px-3 py-2 text-slate-400">{{ v.ts[:19] if v.ts else '—' }}</td>
+                <td class="px-3 py-2 text-slate-100 font-mono">{{ v.path }}</td>
+                <td class="px-3 py-2 text-slate-300">{{ v.ip }}</td>
+                <td class="px-3 py-2 text-slate-400">{{ v.user_agent_summary }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="4" class="px-3 py-4 text-slate-500 text-center">{{ t('adm_no_visits') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </div>
     {% endif %}
 
     <div class="mt-10">
-      <h2 class="text-sm font-semibold text-slate-100 mb-3">Product catalog</h2>
+      <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('adm_product_catalog') }}</h2>
       <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
         <table class="min-w-full divide-y divide-slate-800">
           <thead class="bg-slate-950/80 text-slate-300">
             <tr>
-              <th class="px-3 py-2 text-left">ID</th>
-              <th class="px-3 py-2 text-left">Name</th>
-              <th class="px-3 py-2 text-left">Price</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_id') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_name') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_price') }}</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800">
@@ -148,9 +271,9 @@
 
     <div class="mt-8">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-slate-100">Categories</h2>
-        <a href="{{ url_for('admin_categories') }}" class="text-[11px] text-brandOrange hover:text-amber-200">
-          Manage categories
+        <h2 class="text-sm font-semibold text-slate-100">{{ t('adm_categories') }}</h2>
+        <a href="{{ url_for('admin.categories') }}" class="text-[11px] text-brandOrange hover:text-amber-200">
+          {{ t('adm_manage_categories') }}
         </a>
       </div>
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px] text-slate-300">
@@ -164,7 +287,7 @@
           </div>
         {% else %}
           <p class="text-slate-500">
-            No categories defined yet. Use “Manage categories” to create your first ones.
+            {{ t('adm_no_categories') }}
           </p>
         {% endif %}
       </div>

@@ -5,63 +5,143 @@
   const root = document.getElementById("pm-chat-root");
   if (!root) return;
 
+  const locale = document.body.getAttribute("data-locale") === "tr" ? "tr" : "en";
+  const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+  const csrfToken = csrfMeta ? csrfMeta.getAttribute("content") : "";
+
+  // ---------------------------------------------------------------------------
+  // UI strings
+  // ---------------------------------------------------------------------------
+  const STRINGS = {
+    en: {
+      title: "Support",
+      subtitle: "PHOENIXMARKET Assistant",
+      online: "Online",
+      openLabel: "Open PHOENIXMARKET support chat",
+      closeLabel: "Close support chat",
+      placeholder: "Ask about sign-in, orders, checkout...",
+      typing: "Assistant is typing…",
+      welcome:
+        "Hi, I’m the PHOENIXMARKET assistant. I can help you with sign-in, cart, checkout, and general questions about how the marketplace works.",
+      error:
+        "Sorry, something went wrong while generating a response. Please try again or contact support via email/Discord.",
+      quickReplies: [
+        "How do I sign in?",
+        "How do I place an order?",
+        "Where is my cart?",
+        "How do I contact support?",
+      ],
+    },
+    tr: {
+      title: "Destek",
+      subtitle: "PHOENIXMARKET Asistanı",
+      online: "Çevrimiçi",
+      openLabel: "PHOENIXMARKET destek sohbetini aç",
+      closeLabel: "Destek sohbetini kapat",
+      placeholder: "Giriş, sipariş, ödeme hakkında sorun...",
+      typing: "Asistan yazıyor…",
+      welcome:
+        "Merhaba, ben PHOENIXMARKET asistanıyım. Giriş, sepet, ödeme ve pazaryerinin işleyişiyle ilgili sorularınızda yardımcı olabilirim.",
+      error:
+        "Üzgünüz, yanıt oluşturulurken bir sorun oluştu. Lütfen tekrar deneyin veya e-posta/Discord üzerinden destek ekibine ulaşın.",
+      quickReplies: [
+        "Nasıl giriş yaparım?",
+        "Nasıl sipariş veririm?",
+        "Sepetim nerede?",
+        "Destekle nasıl iletişime geçerim?",
+      ],
+    },
+  };
+  const S = STRINGS[locale];
+
+  // Lowercase that also folds Turkish dotted capital I ("İ" -> "i").
+  function normalize(text) {
+    return (text || "").toLowerCase().replace(/̇/g, "");
+  }
+
   // ---------------------------------------------------------------------------
   // FAQ fallback engine
   // ---------------------------------------------------------------------------
   const faqSupportEngine = (() => {
     const entries = [
       {
-        keywords: ["sign in", "login", "log in", "giriş"],
-        reply:
-          "To sign in, use the “Sign In” button in the top navigation bar. Enter your email and password, then click **Sign in**. If you don’t have an account yet, choose **Sign Up** instead.",
+        keywords: ["sign in", "login", "log in", "giriş", "oturum"],
+        reply: {
+          en: "To sign in, use the “Sign In” link in the top navigation (or the menu on mobile) and enter your email and password. No account yet? Choose “Sign Up” to create one.",
+          tr: "Giriş yapmak için üst menüdeki (mobilde menüdeki) “Giriş Yap” bağlantısını kullanın ve e-posta ile şifrenizi girin. Hesabınız yoksa “Kayıt Ol” ile yeni bir hesap oluşturabilirsiniz.",
+        },
       },
       {
-        keywords: ["sign up", "register", "kayıt"],
-        reply:
-          "You can create a new PHOENIXMARKET account from the **Sign Up** page. Provide your email and a secure password, confirm it, and submit the form.",
+        keywords: ["sign up", "register", "kayıt", "üye"],
+        reply: {
+          en: "Create an account on the “Sign Up” page with your email and a password of at least 8 characters. Orders you place while signed in appear under Account → Order history.",
+          tr: "“Kayıt Ol” sayfasından e-posta adresiniz ve en az 8 karakterli bir şifreyle hesap oluşturabilirsiniz. Giriş yapmışken verdiğiniz siparişler Hesap → Sipariş geçmişi bölümünde görünür.",
+        },
       },
       {
-        keywords: ["forgot", "reset", "şifre", "password"],
-        reply:
-          "Use the **Forgot password** link on the Sign In page to start a password reset. In this demo, the UI is ready but email sending will be added later.",
+        keywords: ["forgot", "reset", "password", "şifre", "parola"],
+        reply: {
+          en: "Forgot your password? Use “Forgot password” on the sign-in page and we’ll email you a link to choose a new one (valid for 1 hour). When signed in, you can change your password on the Account page.",
+          tr: "Şifrenizi mi unuttunuz? Giriş sayfasındaki “Şifremi unuttum” bağlantısını kullanın; yeni şifre belirlemeniz için size bir bağlantı gönderelim (1 saat geçerli). Giriş yapmışken şifrenizi Hesap sayfasından değiştirebilirsiniz.",
+        },
+      },
+      {
+        keywords: ["track", "status", "where is my order", "takip", "durum", "siparişim nerede"],
+        reply: {
+          en: "Use the private tracking link shown after checkout to check your order status at any time. If you were signed in, the order also appears under Account → Order history.",
+          tr: "Sipariş durumunuzu, ödeme sonrasında gösterilen özel takip bağlantısıyla dilediğiniz zaman kontrol edebilirsiniz. Giriş yapmışken sipariş verdiyseniz sipariş Hesap → Sipariş geçmişi bölümünde de görünür.",
+        },
       },
       {
         keywords: ["cart", "sepet"],
-        reply:
-          "Your cart is always available via the **Cart** icon in the top navigation. Use **Add to cart** on any product card, then open the cart to adjust quantities or remove items.",
+        reply: {
+          en: "Your cart is available from the “Cart” link in the navigation. Use “Add to cart” on any product, then adjust quantities in the cart. Quantities are limited by available stock.",
+          tr: "Sepetinize menüdeki “Sepet” bağlantısından ulaşabilirsiniz. Ürünlerdeki “Sepete ekle” butonunu kullanın, ardından adetleri sepetten düzenleyin. Adetler mevcut stokla sınırlıdır.",
+        },
       },
       {
-        keywords: ["checkout", "order", "buy", "purchase"],
-        reply:
-          "After adding items to your cart, open the **Cart** page and click **Proceed to checkout**. On the Checkout page, fill in your billing information and confirm your order.",
+        keywords: ["stock", "out of", "stok", "tükendi"],
+        reply: {
+          en: "Listings marked “Out of stock” can’t be added to the cart right now. Please check back later or contact support.",
+          tr: "“Tükendi” olarak işaretlenen ilanlar şu anda sepete eklenemez. Lütfen daha sonra tekrar bakın veya destek ekibine ulaşın.",
+        },
       },
       {
-        keywords: ["account", "profile", "dashboard"],
-        reply:
-          "Your account area is available from the **Account** link in the navbar once you’re signed in. There you can see profile information and, in future versions, your orders and settings.",
+        keywords: ["checkout", "order", "buy", "purchase", "sipariş", "satın", "ödeme"],
+        reply: {
+          en: "Open your cart and click “Proceed to checkout”, fill in your name and email, and confirm. You’ll get a private tracking link and then complete payment on itemsatis.",
+          tr: "Sepetinizi açıp “Ödemeye geç”e tıklayın, adınızı ve e-postanızı girip onaylayın. Size özel bir takip bağlantısı verilir, ardından ödemeyi itemsatis üzerinden tamamlarsınız.",
+        },
       },
       {
-        keywords: ["seller", "sell", "listings"],
-        reply:
-          "A seller dashboard is planned for managing your own listings and sales. In this demo, the UI is being prepared; full seller tools will be available in a later release.",
+        keywords: ["account", "profile", "hesap", "profil"],
+        reply: {
+          en: "Your Account page shows your profile and order history, and lets you change your password. You need to be signed in to open it.",
+          tr: "Hesap sayfanızda profilinizi ve sipariş geçmişinizi görebilir, şifrenizi değiştirebilirsiniz. Bu sayfayı açmak için giriş yapmanız gerekir.",
+        },
       },
       {
-        keywords: ["contact", "support", "help", "destek"],
-        reply:
-          "You can reach PHOENIXMARKET support via the contact section on the homepage footer using email or Discord. This chat assistant is here for quick guidance on using the marketplace.",
+        keywords: ["contact", "support", "help", "destek", "iletişim", "yardım"],
+        reply: {
+          en: "You can reach PHOENIXMARKET support from the Contact page: send us a message with the form (add your order number if you have one) and we’ll reply by email. Email and Discord work too.",
+          tr: "PHOENIXMARKET destek ekibine İletişim sayfasından ulaşabilirsiniz: formla bize mesaj gönderin (varsa sipariş numaranızı ekleyin), size e-posta ile dönelim. E-posta ve Discord da kullanılabilir.",
+        },
       },
     ];
 
+    const fallback = {
+      en: "I’m not fully sure about that yet. For detailed or account-specific questions, please contact support via email or Discord on the Contact page, and we’ll help you directly.",
+      tr: "Bu konuda henüz emin değilim. Ayrıntılı veya hesabınıza özel sorular için lütfen İletişim sayfasındaki e-posta veya Discord üzerinden destek ekibine ulaşın; size doğrudan yardımcı olalım.",
+    };
+
     function getAnswer(message) {
-      const text = (message || "").toLowerCase();
+      const text = normalize(message);
       for (const entry of entries) {
-        if (entry.keywords.some((k) => text.includes(k))) {
-          return entry.reply;
+        if (entry.keywords.some((k) => text.includes(normalize(k)))) {
+          return entry.reply[locale];
         }
       }
-      return (
-        "I’m not fully sure about that yet. For detailed or account-specific questions, please contact support via email or Discord in the footer, and we’ll help you directly."
-      );
+      return fallback[locale];
     }
 
     return { getAnswer };
@@ -81,17 +161,20 @@
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "X-CSRF-Token": csrfToken,
             },
             body: JSON.stringify({ message: userMessage }),
           });
 
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data && data.answer) {
-              return { text: data.answer, source: "api" };
-            }
+          const data = await resp.json().catch(() => null);
+          if (resp.ok && data && data.answer) {
+            return { text: data.answer, source: "api" };
           }
-          // If server reports AI not configured or any non-OK status,
+          // Rate limit / validation errors carry a user-facing message.
+          if ((resp.status === 429 || resp.status === 400) && data && data.error) {
+            return { text: data.error, source: "api-error" };
+          }
+          // If server reports AI not configured or any other non-OK status,
           // fall back to local FAQ below.
         } catch (e) {
           // Network or server error -> fallback.
@@ -155,7 +238,7 @@
     "button",
     "fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-brandRed to-brandOrange text-black shadow-xl shadow-black/50 focus:outline-none focus:ring-2 focus:ring-brandOrange/80 md:bottom-6 md:right-6"
   );
-  launcher.setAttribute("aria-label", "Open PHOENIXMARKET support chat");
+  launcher.setAttribute("aria-label", S.openLabel);
   launcher.innerHTML =
     '<span class="text-xl font-semibold select-none">?</span><span class="sr-only">Support chat</span>';
 
@@ -177,12 +260,12 @@
   const headerTitle = createEl(
     "p",
     "text-xs font-semibold uppercase tracking-[0.2em] text-brandOrange",
-    "Support"
+    S.title
   );
   const headerSub = createEl(
     "p",
     "mt-0.5 text-xs text-slate-300",
-    "PHOENIXMARKET Assistant"
+    S.subtitle
   );
   headerTitleWrap.appendChild(headerTitle);
   headerTitleWrap.appendChild(headerSub);
@@ -192,15 +275,17 @@
     "span",
     "inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300"
   );
-  headerStatus.innerHTML =
-    '<span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Online</span>';
+  headerStatus.appendChild(
+    createEl("span", "h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse")
+  );
+  headerStatus.appendChild(createEl("span", "", S.online));
 
   const headerClose = createEl(
     "button",
     "ml-1 text-xs text-slate-400 hover:text-slate-200"
   );
   headerClose.textContent = "×";
-  headerClose.setAttribute("aria-label", "Close support chat");
+  headerClose.setAttribute("aria-label", S.closeLabel);
 
   headerActions.appendChild(headerStatus);
   headerActions.appendChild(headerClose);
@@ -218,14 +303,7 @@
     "flex flex-wrap gap-2 px-3 pb-2 text-[11px]"
   );
 
-  const quickReplyOptions = [
-    "How do I sign in?",
-    "How do I place an order?",
-    "Where is my cart?",
-    "How do I contact support?",
-  ];
-
-  quickReplyOptions.forEach((label) => {
+  S.quickReplies.forEach((label) => {
     const btn = createEl(
       "button",
       "rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1 text-slate-300 hover:border-brandOrange hover:text-brandOrange"
@@ -249,7 +327,8 @@
     ""
   );
   input.setAttribute("rows", "1");
-  input.setAttribute("placeholder", "Ask about sign-in, orders, checkout...");
+  input.setAttribute("maxlength", "1000");
+  input.setAttribute("placeholder", S.placeholder);
 
   const sendBtn = createEl(
     "button",
@@ -283,7 +362,7 @@
       );
       const bubble = createEl(
         "div",
-        "max-w-[80%] rounded-2xl px-3 py-2 " +
+        "max-w-[80%] whitespace-pre-line rounded-2xl px-3 py-2 " +
           (m.role === "user"
             ? "bg-brandRed text-black rounded-br-sm"
             : "bg-slate-800 text-slate-100 rounded-bl-sm")
@@ -312,8 +391,10 @@
       "div",
       "inline-flex items-center gap-1 rounded-2xl bg-slate-800 px-3 py-2 text-[10px] text-slate-300 rounded-bl-sm"
     );
-    bubble.innerHTML =
-      '<span class="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse"></span><span>Assistant is typing…</span>';
+    bubble.appendChild(
+      createEl("span", "h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse")
+    );
+    bubble.appendChild(createEl("span", "", S.typing));
     row.appendChild(bubble);
     messageContainer.appendChild(row);
     messageContainer.scrollTop = messageContainer.scrollHeight;
@@ -326,10 +407,7 @@
 
   // Initial welcome message
   if (!messages.length) {
-    addMessage(
-      "assistant",
-      "Hi, I’m the PHOENIXMARKET assistant. I can help you with sign-in, cart, checkout, and general questions about how the marketplace works."
-    );
+    addMessage("assistant", S.welcome);
   } else {
     renderMessages();
   }
@@ -376,10 +454,7 @@
       })
       .catch(() => {
         removeTypingIndicator();
-        addMessage(
-          "assistant",
-          "Sorry, something went wrong while generating a response. Please try again or contact support via email/Discord."
-        );
+        addMessage("assistant", S.error);
       })
       .finally(() => {
         isSending = false;
@@ -399,4 +474,3 @@
     }
   });
 })();
-

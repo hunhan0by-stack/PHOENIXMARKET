@@ -1,0 +1,10 @@
+{% extends "emails/_layout.html" %}
+{% block body %}
+  <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;">{{ t('email_back_in_stock_subject').format(name=product.name) }}</h1>
+  <p style="margin:0 0 16px;color:#cbd5e1;">{{ t('email_back_in_stock_intro') }}</p>
+  <p style="margin:0 0 8px;font-weight:bold;color:#f8fafc;">{{ product.name }}</p>
+  <p style="margin:20px 0;">
+    <a href="{{ product_url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('email_back_in_stock_cta') }}</a>
+  </p>
+  <p style="margin:16px 0 0;font-size:12px;color:#64748b;">{{ t('email_back_in_stock_note') }}</p>
+{% endblock %}

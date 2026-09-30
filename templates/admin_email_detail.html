@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ t('adm_email') }} #{{ email.id }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_breadcrumb_emails') }}</p>
+        <h1 class="mt-1 text-xl font-semibold tracking-tight text-slate-50">{{ email.subject }}</h1>
+      </div>
+      <a href="{{ url_for('admin.emails') }}" class="text-xs text-brandOrange hover:text-amber-200">{{ t('adm_back_emails') }}</a>
+    </div>
+
+    <dl class="mt-6 grid gap-2 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-xs sm:grid-cols-2">
+      <div><dt class="text-slate-500">{{ t('adm_to') }}</dt><dd class="text-slate-100">{{ email.to_address }}</dd></div>
+      <div><dt class="text-slate-500">{{ t('adm_type') }}</dt><dd class="text-slate-100">{{ t('adm_email_kind_' ~ email.kind) if email.kind else '—' }}</dd></div>
+      <div><dt class="text-slate-500">{{ t('adm_created') }}</dt><dd class="text-slate-100">{{ email.created_at.strftime('%Y-%m-%d %H:%M UTC') if email.created_at else '—' }}</dd></div>
+      <div><dt class="text-slate-500">{{ t('adm_status') }}</dt><dd class="text-slate-100">{{ t('adm_email_status_' ~ email.status) }}{% if email.sent_at %} · {{ email.sent_at.strftime('%Y-%m-%d %H:%M UTC') }}{% endif %}</dd></div>
+      {% if email.error %}
+        <div class="sm:col-span-2"><dt class="text-slate-500">{{ t('adm_error') }}</dt><dd class="break-all text-red-300">{{ email.error }}</dd></div>
+      {% endif %}
+    </dl>
+
+    <h2 class="mt-8 mb-2 text-sm font-semibold text-slate-100">{{ t('adm_message_plain') }}</h2>
+    <pre class="whitespace-pre-wrap break-words rounded-2xl border border-slate-800 bg-slate-900/80 p-5 text-xs text-slate-200">{{ email.body_text }}</pre>
+  </div>
+</section>
+{% endblock %}

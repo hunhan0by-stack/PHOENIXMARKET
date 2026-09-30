@@ -1,22 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Edit Category – PHOENIXMARKET{% endblock %}
+{% block title %}{{ t('adm_edit_category') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
 {% block content %}
 <section class="bg-slate-950/90">
   <div class="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:px-8">
     <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">
-      Admin / Categories / Edit
+      {{ t('adm_breadcrumb_category_edit') }}
     </p>
     <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-      Edit category
+      {{ t('adm_edit_category') }}
     </h1>
     <p class="mt-1 text-sm text-slate-400">
-      Rename the category and optionally choose a parent category to build a simple hierarchy.
+      {{ t('adm_edit_category_intro') }}
     </p>
 
     <form method="post" class="mt-6 space-y-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm">
+      {{ csrf_field() }}
       <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Category name</label>
-        <input
+        <label for="f-name" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_category_name') }}</label>
+        <input id="f-name"
           type="text"
           name="name"
           value="{{ category.name }}"
@@ -26,12 +27,12 @@
       </div>
 
       <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Parent category (optional)</label>
-        <select
+        <label for="f-parent-id" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_parent_category') }}</label>
+        <select id="f-parent-id"
           name="parent_id"
           class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none"
         >
-          <option value="">None</option>
+          <option value="">{{ t('adm_none') }}</option>
           {% for c in categories %}
             {% if c.id != category.id %}
               <option value="{{ c.id }}" {% if category.parent_id == c.id %}selected{% endif %}>
@@ -41,16 +42,16 @@
           {% endfor %}
         </select>
         <p class="mt-1 text-[11px] text-slate-500">
-          Subcategories are for organization only; they do not change how listings are filtered yet.
+          {{ t('adm_subcategory_note') }}
         </p>
       </div>
 
       <div class="flex items-center justify-between pt-3">
-        <a href="{{ url_for('admin_categories') }}" class="text-xs text-slate-400 hover:text-brandOrange">
-          Back to categories
+        <a href="{{ url_for('admin.categories') }}" class="text-xs text-slate-400 hover:text-brandOrange">
+          {{ t('adm_back_categories') }}
         </a>
         <button type="submit" class="inline-flex rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-5 py-2 text-xs font-semibold text-black">
-          Save changes
+          {{ t('admin_save') }}
         </button>
       </div>
     </form>

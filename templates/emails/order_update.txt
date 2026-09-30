@@ -1,0 +1,15 @@
+{{ t('email_update_subject').format(id=order.id) }}
+
+{{ t('email_update_intro') }}
+{% if 'status_changed' in changes %}
+{{ t('timeline_status').format(status=t('status_' ~ order.fulfillment_status)) }}
+{% endif %}{% if 'tracking_updated' in changes and order.tracking_number %}
+{{ t('timeline_tracking').format(number=order.tracking_number) }}
+{% endif %}{% if 'customer_note' in changes and order.carrier_note %}
+{{ t('carrier_note_label') }}:
+{{ order.carrier_note }}
+{% endif %}
+{{ t('track_order_cta') }}: {{ track_url }}
+
+--
+{{ t('email_footer') }}

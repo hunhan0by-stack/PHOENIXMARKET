@@ -1,0 +1,142 @@
+"""
+Request/session helpers shared by the views: locale and currency, translated
+flash messages, the signed-in customer, the admin flag, CSRF tokens and safe
+"go back" redirects.
+"""
+import re
+import secrets
+from urllib.parse import urlparse
+
+from flask import g, redirect, request, session, url_for
+from markupsafe import Markup
+
+from services.translations import t as translate
+
+LOCALE_KEY = "locale"
+CURRENCY_KEY = "currency"
+SUPPORTED_LOCALES = ("en", "tr")
+SUPPORTED_CURRENCIES = ("TRY", "USD", "EUR")
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MIN_PASSWORD_LENGTH = 8
+
+CSRF_SESSION_KEY = "_csrf_token"
+
+
+def get_current_locale():
+    """Get user's locale from session, default en."""
+    loc = session.get(LOCALE_KEY) or "en"
+    return loc if loc in SUPPORTED_LOCALES else "en"
+
+
+def get_current_currency():
+    """Get user's currency from session, default USD."""
+    cur = session.get(CURRENCY_KEY) or "USD"
+    return cur if cur in SUPPORTED_CURRENCIES else "USD"
+
+
+def tr_msg(key: str, **kwargs) -> str:
+    """Translate a message for the current locale, filling {placeholders}."""
+    return translate(key, get_current_locale()).format(**kwargs)
+
+
+def current_user():
+    """The signed-in customer ({"id", "email"}), or None."""
+    user = session.get("user") or {}
+    return user if user.get("id") else None
+
+
+def login_customer(user: dict) -> None:
+    session["user"] = {"id": user["id"], "email": user["email"]}
+
+
+def is_admin():
+    user = session.get("user") or {}
+    # Support both the older "admin" flag and the new "is_admin" flag
+    if session.get("is_admin"):
+        return True
+    return bool(session.get("admin")) and user.get("role") == "admin"
+
+
+def password_problem(password: str, confirm: str):
+    """Translation key describing why a new password is unacceptable, or None."""
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return "flash_password_too_short"
+    if password != confirm:
+        return "flash_passwords_mismatch"
+    return None
+
+
+def client_ip() -> str:
+    return (
+        request.remote_addr
+        or (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+        or "unknown"
+    )
+
+
+def safe_back(fallback_endpoint: str = "shop.index", **values):
+    """Redirect to the same-site referrer, else to fallback_endpoint."""
+    ref = request.referrer
+    if ref and urlparse(ref).netloc == request.host:
+        return redirect(ref)
+    return redirect(url_for(fallback_endpoint, **values))
+
+
+def safe_next(target: str | None, fallback_url: str) -> str:
+    """target if it is a local path ("/..."), else fallback_url (no open redirects)."""
+    target = (target or "").strip()
+    if target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return target
+    return fallback_url
+
+
+# -----------------------------------------------------------------------------
+# CSRF protection: every state-changing request must echo the session token,
+# as a "csrf_token" form field or an "X-CSRF-Token" header (used by chat.js).
+# The check itself runs in app.py (before_request).
+# -----------------------------------------------------------------------------
+def get_csrf_token() -> str:
+    token = session.get(CSRF_SESSION_KEY)
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session[CSRF_SESSION_KEY] = token
+    return token
+
+
+def csrf_field():
+    return Markup('<input type="hidden" name="csrf_token" value="{}">').format(
+        get_csrf_token()
+    )
+
+
+def csp_nonce() -> str:
+    """Per-request nonce for the few inline <script> blocks (see app.security_headers)."""
+    if "csp_nonce" not in g:
+        g.csp_nonce = secrets.token_urlsafe(16)
+    return g.csp_nonce
+
+
+def content_security_policy() -> str:
+    script_src = "'self' https://cdn.tailwindcss.com"
+    if "csp_nonce" in g:
+        script_src += f" 'nonce-{g.csp_nonce}'"
+    return "; ".join([
+        "default-src 'self'",
+        f"script-src {script_src}",
+        # Tailwind's CDN build injects <style> tags at runtime.
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self' data:",
+        "connect-src 'self'",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self'",
+    ])
+
+
+def csrf_token_valid() -> bool:
+    sent = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token") or ""
+    expected = session.get(CSRF_SESSION_KEY) or ""
+    return bool(expected) and secrets.compare_digest(sent.encode(), expected.encode())

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import pagination with context %}
+{% block title %}{{ t('adm_reviews') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_admin') }}</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">{{ t('adm_reviews') }}</h1>
+        <p class="mt-1 text-sm text-slate-400">{{ t('adm_reviews_intro') }}</p>
+      </div>
+      <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-brandOrange hover:text-amber-200">{{ t('adm_back_dashboard') }}</a>
+    </div>
+
+    <nav class="mt-6 flex flex-wrap gap-2 text-[11px]" aria-label="{{ t('adm_review_status') }}">
+      <a href="{{ url_for('admin.reviews') }}" class="rounded-full border px-3 py-1 {{ 'border-brandOrange bg-brandOrange/15 text-brandOrange' if not current_status else 'border-slate-700 text-slate-300 hover:border-brandOrange' }}">
+        {{ t('adm_all') }} <span class="text-slate-500">{{ counts.values()|sum }}</span>
+      </a>
+      {% for s in ('published', 'hidden') %}
+        <a href="{{ url_for('admin.reviews', status=s) }}" class="rounded-full border px-3 py-1 {{ 'border-brandOrange bg-brandOrange/15 text-brandOrange' if current_status == s else 'border-slate-700 text-slate-300 hover:border-brandOrange' }}">
+          {{ t('adm_review_status_' ~ s) }} <span class="text-slate-500">{{ counts[s] }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+
+    <ul class="mt-6 space-y-3">
+      {% for r in reviews %}
+        <li class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-xs {{ 'opacity-60' if r.status == 'hidden' else '' }}">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-amber-300">{{ '★' * r.rating }}{{ '☆' * (5 - r.rating) }}</span>
+            <a href="{{ url_for('shop.product_detail', slug_or_id=r.product_slug) }}#reviews" class="font-semibold text-slate-100 hover:text-brandOrange">{{ r.product_name }}</a>
+            <span class="text-slate-400">{{ r.reviewer_name }} · {{ r.user_email }}</span>
+            <span class="text-slate-500">{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '' }}</span>
+            <span class="ml-auto rounded-full px-2 py-0.5 {{ 'bg-emerald-500/10 text-emerald-300' if r.status == 'published' else 'bg-slate-700/60 text-slate-300' }}">{{ t('adm_review_status_' ~ r.status) }}</span>
+          </div>
+          <p class="mt-2 whitespace-pre-line text-sm text-slate-300">{{ r.body }}</p>
+          <div class="mt-3 flex gap-3">
+            <form method="post" action="{{ url_for('admin.set_review_status', review_id=r.id) }}">
+              {{ csrf_field() }}
+              <input type="hidden" name="next" value="{{ request.full_path }}">
+              <input type="hidden" name="status" value="{{ 'hidden' if r.status == 'published' else 'published' }}">
+              <button class="text-slate-300 hover:text-brandOrange">{{ 'Hide' if r.status == 'published' else 'Publish' }}</button>
+            </form>
+            <form method="post" action="{{ url_for('admin.delete_review', review_id=r.id) }}" data-confirm="{{ t('adm_delete_review_confirm') }}">
+              {{ csrf_field() }}
+              <input type="hidden" name="next" value="{{ request.full_path }}">
+              <button class="text-red-400 hover:text-red-300">{{ t('admin_delete') }}</button>
+            </form>
+          </div>
+        </li>
+      {% else %}
+        <li class="rounded-2xl border border-slate-800 bg-slate-950/80 p-8 text-center text-sm text-slate-500">{{ t('adm_no_reviews') }}</li>
+      {% endfor %}
+    </ul>
+
+    {{ pagination(page, 'admin.reviews', filter_args) }}
+  </div>
+</section>
+{% endblock %}

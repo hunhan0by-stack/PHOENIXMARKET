@@ -1,0 +1,9 @@
+{{ t('email_support_reply_intro') }}
+
+{{ message.admin_reply }}
+
+--
+{{ t('email_support_original') }}:
+> {{ message.message | replace('\n', '\n> ') }}
+
+{{ t('email_footer') }}

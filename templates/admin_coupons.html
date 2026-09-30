@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_coupon_form.html" import coupon_form with context %}
+{% block title %}{{ t('adm_coupons') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_admin') }}</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">{{ t('adm_tile_coupons') }}</h1>
+        <p class="mt-1 text-sm text-slate-400">{{ t('adm_coupons_intro') }}</p>
+      </div>
+      <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-brandOrange hover:text-amber-200">{{ t('adm_back_dashboard') }}</a>
+    </div>
+
+    <div class="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/80 text-[11px]">
+        <table class="min-w-full divide-y divide-slate-800">
+          <thead class="bg-slate-950/80 text-slate-400">
+            <tr>
+              <th class="px-3 py-2 text-left">{{ t('adm_code') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_discount') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_min_order') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_uses') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_valid') }}</th>
+              <th class="px-3 py-2 text-left">{{ t('adm_status') }}</th>
+              <th class="px-3 py-2 text-right">{{ t('adm_actions') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800 text-slate-200">
+            {% for c in coupons %}
+              <tr>
+                <td class="px-3 py-2 font-mono">{{ c.code }}</td>
+                <td class="px-3 py-2">{{ '%g%%'|format(c.value) if c.kind == 'percent' else '$%.2f'|format(c.value) }}</td>
+                <td class="px-3 py-2 text-slate-400">{{ '$%.2f'|format(c.min_order_usd) if c.min_order_usd else '—' }}</td>
+                <td class="px-3 py-2 text-slate-400">{{ c.used_count }}{% if c.max_uses is not none %} / {{ c.max_uses }}{% endif %}</td>
+                <td class="px-3 py-2 text-slate-400">
+                  {{ c.starts_at.strftime('%Y-%m-%d') if c.starts_at else '…' }} → {{ c.expires_at.strftime('%Y-%m-%d') if c.expires_at else '…' }}
+                </td>
+                <td class="px-3 py-2">
+                  {% if not c.active %}<span class="text-slate-500">{{ t('admin_status_inactive') }}</span>
+                  {% elif c.expires_at and c.expires_at <= now %}<span class="text-red-400">{{ t('adm_expired') }}</span>
+                  {% elif c.starts_at and c.starts_at > now %}<span class="text-amber-300">{{ t('adm_scheduled') }}</span>
+                  {% elif c.max_uses is not none and c.used_count >= c.max_uses %}<span class="text-red-400">{{ t('adm_used_up') }}</span>
+                  {% else %}<span class="text-emerald-300">{{ t('admin_status_active') }}</span>{% endif %}
+                </td>
+                <td class="px-3 py-2 text-right whitespace-nowrap space-x-2">
+                  <a href="{{ url_for('admin.edit_coupon', coupon_id=c.id) }}" class="text-brandOrange hover:text-amber-200">{{ t('adm_edit') }}</a>
+                  <form method="post" action="{{ url_for('admin.toggle_coupon', coupon_id=c.id) }}" class="inline">
+                    {{ csrf_field() }}
+                    <button class="text-slate-300 hover:text-brandOrange">{{ 'Disable' if c.active else 'Enable' }}</button>
+                  </form>
+                  <form method="post" action="{{ url_for('admin.delete_coupon', coupon_id=c.id) }}" class="inline" data-confirm="{{ t('adm_delete_coupon_confirm') }}">
+                    {{ csrf_field() }}
+                    <button class="text-red-400 hover:text-red-300">{{ t('admin_delete') }}</button>
+                  </form>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7" class="px-3 py-8 text-center text-slate-500">{{ t('adm_no_coupons') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h2 class="mb-3 text-sm font-semibold text-slate-100">{{ t('adm_new_coupon') }}</h2>
+        {{ coupon_form(form, url_for('admin.coupons_list'), t('adm_create_code')) }}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

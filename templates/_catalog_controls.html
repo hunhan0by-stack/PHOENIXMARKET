@@ -1,0 +1,19 @@
+{# Sort / in-stock controls for catalog pages.
+   Import with: {% from "_catalog_controls.html" import catalog_controls with context %} #}
+{% macro catalog_controls(controls, page) %}
+  <form method="get" class="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/80 px-4 py-3 text-xs">
+    {% if controls.args.q %}<input type="hidden" name="q" value="{{ controls.args.q }}">{% endif %}
+    <label for="catalog-sort" class="text-slate-400">{{ t('sort_label') }}</label>
+    <select id="catalog-sort" name="sort" class="rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-xs text-slate-100 focus:border-brandOrange focus:outline-none">
+      {% for s in controls.sorts %}
+        <option value="{{ s }}" {% if controls.sort == s %}selected{% endif %}>{{ t('sort_' ~ s) }}</option>
+      {% endfor %}
+    </select>
+    <label class="flex items-center gap-2 text-slate-300">
+      <input type="checkbox" name="in_stock" value="1" {% if controls.in_stock %}checked{% endif %} class="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-orange-500">
+      {{ t('filter_in_stock') }}
+    </label>
+    <button class="rounded-lg border border-slate-700 px-3 py-1.5 text-slate-200 hover:border-brandOrange hover:text-brandOrange">{{ t('catalog_apply') }}</button>
+    <span class="ml-auto text-slate-500">{{ t('catalog_results').format(n=page.total) }}</span>
+  </form>
+{% endmacro %}

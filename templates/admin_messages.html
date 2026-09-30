@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_pagination.html" import pagination with context %}
+{% block title %}{{ t('adm_support_inbox') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-5xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('adm_admin') }}</p>
+        <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">{{ t('adm_support_inbox') }}</h1>
+        <p class="mt-1 text-sm text-slate-400">{{ t('adm_messages_intro') }}</p>
+      </div>
+      <a href="{{ url_for('admin.dashboard') }}" class="text-xs text-brandOrange hover:text-amber-200">{{ t('adm_back_dashboard') }}</a>
+    </div>
+
+    <nav class="mt-6 flex flex-wrap gap-2 text-[11px]" aria-label="{{ t('adm_message_status') }}">
+      {% for s, label in (('open', 'Open'), ('closed', 'Closed'), ('all', 'All')) %}
+        <a href="{{ url_for('admin.messages', status=s) }}" class="rounded-full border px-3 py-1 {{ 'border-brandOrange bg-brandOrange/15 text-brandOrange' if current_status == s else 'border-slate-700 text-slate-300 hover:border-brandOrange' }}">
+          {{ label }} <span class="text-slate-500">{{ counts.values()|sum if s == 'all' else counts[s] }}</span>
+        </a>
+      {% endfor %}
+    </nav>
+
+    <ul class="mt-6 divide-y divide-slate-800 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/80">
+      {% for m in messages %}
+        <li>
+          <a href="{{ url_for('admin.message_detail', message_id=m.id) }}" class="flex flex-wrap items-center gap-3 px-4 py-3 text-xs hover:bg-slate-900/60">
+            <span class="h-2 w-2 rounded-full {{ 'bg-brandOrange' if m.status == 'open' and not m.replied_at else 'bg-slate-600' }}"></span>
+            <span class="font-semibold text-slate-100">{{ m.subject }}</span>
+            <span class="text-slate-400">{{ m.name }} · {{ m.email }}</span>
+            {% if m.replied_at %}<span class="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-300">{{ t('adm_replied') }}</span>{% endif %}
+            <span class="ml-auto text-slate-500">{{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else '' }}</span>
+          </a>
+        </li>
+      {% else %}
+        <li class="px-4 py-8 text-center text-sm text-slate-500">{{ t('adm_no_messages') }}</li>
+      {% endfor %}
+    </ul>
+
+    {{ pagination(page, 'admin.messages', filter_args) }}
+  </div>
+</section>
+{% endblock %}
