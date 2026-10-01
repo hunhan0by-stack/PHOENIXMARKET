@@ -458,7 +458,7 @@ def update_order_fulfillment(
     db = get_db()
     row = db.execute(
         """
-        SELECT fulfillment_status, stock_reserved, tracking_number, carrier_note
+        SELECT fulfillment_status, stock_reserved, tracking_number, carrier_note, coupon_code
         FROM orders WHERE id = ?
         """,
         (order_id,),
@@ -489,6 +489,13 @@ def update_order_fulfillment(
                 _release_stock(db, items)
             else:
                 _reserve_stock(db, items, require_active=False)
+        if row["coupon_code"] and was_cancelled != now_cancelled:
+            # A cancelled order gives its discount-code use back (so a
+            # single-use code can be used again); re-opening takes it again.
+            db.execute(
+                "UPDATE coupons SET used_count = MAX(used_count + ?, 0) WHERE code = ?",
+                (-1 if now_cancelled else 1, row["coupon_code"]),
+            )
         if old_status != fulfillment_status:
             event = "cancelled_by_customer" if actor == "customer" else "status_changed"
             _add_order_event(

@@ -57,3 +57,33 @@ def test_chat_rejects_long_messages_and_rate_limits(ai_enabled, make_client):
     codes = [c.post_json("/api/chat", {"message": "hi"}).status_code for _ in range(20)]
     assert codes == [200] * 20
     assert c.post_json("/api/chat", {"message": "hi"}).status_code == 429
+
+
+@pytest.mark.parametrize("payload", [{"message": 5}, {"message": ["hi"]}, {"message": None}, ["hi"], "hi"])
+def test_chat_rejects_malformed_payloads(ai_enabled, make_client, payload):
+    r = make_client(ip="10.50.0.3").post_json("/api/chat", payload)
+    assert r.status_code == 400 and "error" in r.get_json()
+    assert FakeOpenAI.calls == []
+
+
+def test_chat_catalog_lists_packages_with_their_prices(ai_enabled, make_client):
+    import services.store as store
+    from tests.helpers import in_app
+
+    in_app(store.create_variant, 2, "1K", 4.99, 10, 0, True)
+    in_app(store.create_variant, 2, "5K", 19.99, 0, 1, True)
+    make_client(ip="10.50.0.4").post_json("/api/chat", {"message": "prices?"})
+    system = FakeOpenAI.calls[-1]["messages"][0]["content"]
+    assert "Instagram Followers (Social Media): packages: 1K 4.99 $, 5K 19.99 $ (out of stock)" in system
+
+
+def test_chat_provider_failure_is_reported_without_details(monkeypatch, make_client):
+    class Exploding(FakeOpenAI):
+        def create(self, **kwargs):
+            raise RuntimeError("upstream secret")
+
+    monkeypatch.setattr(api, "OpenAI", Exploding)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    r = make_client(locale="tr", ip="10.50.0.5").post_json("/api/chat", {"message": "hi"})
+    assert r.status_code == 502 and "upstream secret" not in r.get_data(as_text=True)
+    assert "asistanına" in r.get_json()["error"]

@@ -2,6 +2,7 @@
 Cart, checkout, order confirmation and public order tracking.
 Payment happens on itemsatis after the order is recorded.
 """
+import hashlib
 import uuid
 
 from flask import (
@@ -47,6 +48,7 @@ from services.web import (
 bp = Blueprint("orders", __name__)
 
 COUPON_SESSION_KEY = "coupon"
+CHECKOUT_MAX_LENGTHS = {"full_name": 100, "email": 254, "notes": 2000}
 # Slows down guessing discount codes (per client IP)
 coupon_limiter = RateLimiter(max_hits=20, window_seconds=10 * 60)
 
@@ -117,6 +119,16 @@ def remove_coupon():
     if session.pop(COUPON_SESSION_KEY, None):
         flash(tr_msg("flash_coupon_removed"), "info")
     return redirect(url_for("orders.cart"))
+
+
+def checkout_quote(items: list, discount_usd: float) -> str:
+    """
+    Fingerprint of what the checkout page showed (lines, quantities, unit
+    prices, discount). The form echoes it back so an order is never placed at
+    prices the customer has not seen.
+    """
+    basis = ";".join(f"{i['key']}x{i['qty']}@{i['unit_price_usd']:.2f}" for i in items)
+    return hashlib.sha256(f"{basis}|{discount_usd:.2f}".encode()).hexdigest()[:20]
 
 
 def requested_quantity(raw, default: int) -> int:
@@ -210,6 +222,8 @@ def checkout():
         "coupon": coupon,
         "discount": discount_display,
         "total": max(0.0, subtotal_display - discount_display),
+        "quote": checkout_quote(items, discount_usd),
+        "max_lengths": CHECKOUT_MAX_LENGTHS,
     }
     user = current_user()
     form = {"full_name": "", "email": user["email"] if user else "", "notes": ""}
@@ -225,6 +239,11 @@ def checkout():
             problem = "flash_checkout_required"
         elif not EMAIL_RE.match(email):
             problem = "flash_invalid_email"
+        elif any(len(form[k]) > n for k, n in CHECKOUT_MAX_LENGTHS.items()):
+            problem = "flash_checkout_too_long"
+        elif request.form.get("quote") not in (None, totals["quote"]):
+            # A price, package or discount changed since the page was shown
+            problem = "flash_checkout_prices_changed"
         if problem:
             flash(tr_msg(problem), "error")
             return render_template("checkout.html", items=items, form=form, **totals)

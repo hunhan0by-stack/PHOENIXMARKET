@@ -17,6 +17,7 @@ from services.web import (
     current_user,
     get_current_locale,
     login_customer,
+    logout_customer,
     password_problem,
     tr_msg,
 )
@@ -25,10 +26,16 @@ bp = Blueprint("account", __name__)
 
 # Brute-force protection for customer sign-in (per client IP)
 signin_limiter = RateLimiter(max_hits=10, window_seconds=15 * 60)
+# Accounts created per client IP and hour (stops scripted sign-up floods)
+signup_limiter = RateLimiter(max_hits=5, window_seconds=60 * 60)
 # Password reset emails: per client IP, and per account (MAX_RESETS_PER_HOUR)
 reset_request_limiter = RateLimiter(max_hits=5, window_seconds=60 * 60)
 MAX_RESETS_PER_HOUR = 3
 RESET_TOKEN_TTL_SECONDS = 60 * 60
+
+# Compared against when the email is unknown, so a failed sign-in takes as long
+# whether or not the account exists (no account enumeration by timing).
+_DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(16))
 
 
 @bp.route("/signin", methods=["GET", "POST"])
@@ -47,7 +54,10 @@ def signin():
             flash(tr_msg("flash_email_password_required"), "error")
             return render_template("signin.html", email=email)
         user = store.get_user_by_email(email)
-        if user and check_password_hash(user["password_hash"], password):
+        password_ok = check_password_hash(
+            user["password_hash"] if user else _DUMMY_PASSWORD_HASH, password
+        )
+        if user and password_ok:
             signin_limiter.reset(limit_key)
             login_customer(user)
             flash(tr_msg("flash_signed_in"), "success")
@@ -73,12 +83,18 @@ def signup():
             problem = "flash_invalid_email"
         else:
             problem = password_problem(password, confirm)
+        limit_key = client_ip()
+        wait = signup_limiter.retry_after(limit_key)
+        if not problem and wait:
+            flash(tr_msg("flash_too_many_attempts", minutes=(wait + 59) // 60), "error")
+            return render_template("signup.html", email=email), 429
         if not problem:
             user_id = store.create_user(email, generate_password_hash(password))
             if user_id is None:
                 problem = "flash_email_taken"
             else:
-                login_customer({"id": user_id, "email": email})
+                signup_limiter.hit(limit_key)
+                login_customer(store.get_user(user_id))
                 flash(tr_msg("flash_account_created"), "success")
                 return redirect(url_for("account.profile"))
         flash(tr_msg(problem, n=MIN_PASSWORD_LENGTH), "error")
@@ -88,7 +104,7 @@ def signup():
 
 @bp.route("/signout")
 def signout():
-    session.pop("user", None)
+    logout_customer()
     session.pop("admin", None)
     session.pop("is_admin", None)
     flash(tr_msg("flash_signed_out"), "success")
@@ -133,7 +149,9 @@ def reset_password(token):
         if problem:
             flash(tr_msg(problem, n=MIN_PASSWORD_LENGTH), "error")
             return render_template("reset_password.html", token=token)
-        store.complete_password_reset(reset["id"], reset["user_id"], generate_password_hash(password))
+        if not store.complete_password_reset(reset["id"], reset["user_id"], generate_password_hash(password)):
+            flash(tr_msg("flash_reset_invalid"), "error")
+            return redirect(url_for("account.forgot_password"))
         login_customer(store.get_user(reset["user_id"]))
         flash(tr_msg("flash_reset_done"), "success")
         return redirect(url_for("account.profile"))
@@ -164,6 +182,8 @@ def change_password():
         flash(tr_msg(problem, n=MIN_PASSWORD_LENGTH), "error")
     else:
         store.update_user_password(user["id"], generate_password_hash(new))
+        # Other devices are now signed out; keep this session signed in
+        login_customer(store.get_user(user["id"]))
         flash(tr_msg("flash_password_changed"), "success")
     return redirect(url_for("account.profile"))
 

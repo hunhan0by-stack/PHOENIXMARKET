@@ -56,3 +56,18 @@ def test_canonical_urls_for_aliased_admin_routes():
 def test_mobile_menu_is_rendered(client):
     html = client.html("/")
     assert "<details" in html and 'aria-label="Menu"' in html
+
+
+def test_unexpected_error_shows_friendly_page_without_details(make_client, monkeypatch):
+    from app import app
+    import services.store as store
+
+    def broken(*_a, **_kw):
+        raise RuntimeError("secret internal detail")
+
+    monkeypatch.setitem(app.config, "PROPAGATE_EXCEPTIONS", False)
+    monkeypatch.setattr(store, "list_public_products", broken)
+    r = make_client(locale="tr").get("/products")
+    body = r.get_data(as_text=True)
+    assert r.status_code == 500 and "Bir sorun oluştu" in body
+    assert "secret internal detail" not in body and "Traceback" not in body

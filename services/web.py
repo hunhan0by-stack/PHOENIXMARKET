@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 from flask import g, redirect, request, session, url_for
 from markupsafe import Markup
 
+import services.store as store
 from services.translations import t as translate
 
 LOCALE_KEY = "locale"
@@ -41,13 +42,34 @@ def tr_msg(key: str, **kwargs) -> str:
 
 
 def current_user():
-    """The signed-in customer ({"id", "email"}), or None."""
+    """
+    The signed-in customer ({"id", "email"}), or None. The session is checked
+    against the account once per request: a deleted account or a password
+    changed elsewhere (session_version bumped) signs this session out.
+    """
+    if "current_user" in g:
+        return g.current_user
     user = session.get("user") or {}
-    return user if user.get("id") else None
+    result = None
+    if user.get("id"):
+        record = store.get_user(user["id"])
+        if record and record.get("session_version", 0) == user.get("v", 0):
+            result = {"id": record["id"], "email": record["email"]}
+        else:
+            session.pop("user", None)
+    g.current_user = result
+    return result
 
 
 def login_customer(user: dict) -> None:
-    session["user"] = {"id": user["id"], "email": user["email"]}
+    """Sign a customer in (user: a users row, or at least id and email)."""
+    session["user"] = {"id": user["id"], "email": user["email"], "v": user.get("session_version", 0)}
+    g.pop("current_user", None)
+
+
+def logout_customer() -> None:
+    session.pop("user", None)
+    g.pop("current_user", None)
 
 
 def is_admin():

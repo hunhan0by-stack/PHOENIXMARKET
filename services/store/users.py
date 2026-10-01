@@ -43,9 +43,11 @@ def get_user_by_email(email: str):
 
 
 def update_user_password(user_id: int, password_hash: str) -> None:
+    """Set a new password; bumping session_version signs out every other session."""
     db = get_db()
     db.execute(
-        "UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id)
+        "UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
+        (password_hash, user_id),
     )
     db.commit()
 
@@ -103,13 +105,28 @@ def get_valid_password_reset(token: str):
     return dict(row)
 
 
-def complete_password_reset(reset_id: int, user_id: int, password_hash: str) -> None:
-    """Set the new password and burn every open reset link of the user."""
+def complete_password_reset(reset_id: int, user_id: int, password_hash: str) -> bool:
+    """
+    Set the new password, burn every open reset link of the user and sign out
+    their other sessions. Returns False (changing nothing) when this link was
+    used in the meantime, so a link works exactly once even under double submits.
+    """
     db = get_db()
     now = datetime.now(timezone.utc).isoformat()
-    db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+    claimed = db.execute(
+        "UPDATE password_resets SET used_at = ? WHERE id = ? AND user_id = ? AND used_at IS NULL",
+        (now, reset_id, user_id),
+    ).rowcount
+    if claimed != 1:
+        db.rollback()
+        return False
+    db.execute(
+        "UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
+        (password_hash, user_id),
+    )
     db.execute(
         "UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
         (now, user_id),
     )
     db.commit()
+    return True

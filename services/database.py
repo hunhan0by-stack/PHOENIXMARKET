@@ -247,6 +247,11 @@ def init_schema():
     # Discount code used at checkout; total_price is already net of discount_usd.
     _ensure_column(db, "orders", "coupon_code", "coupon_code TEXT")
     _ensure_column(db, "orders", "discount_usd", "discount_usd REAL NOT NULL DEFAULT 0")
+    # Bumped on password change/reset; sessions carrying an older value are
+    # signed out (see services.web.current_user).
+    _ensure_column(
+        db, "users", "session_version", "session_version INTEGER NOT NULL DEFAULT 0"
+    )
     # Package bought (NULL for listings without packages).
     _ensure_column(db, "order_items", "variant_id", "variant_id INTEGER")
     _ensure_column(db, "order_items", "variant_name", "variant_name TEXT")

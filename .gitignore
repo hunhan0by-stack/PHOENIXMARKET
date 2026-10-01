@@ -1,7 +1,37 @@
+# Python bytecode and tool caches
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
 .venv/
 venv/
+env/
+
+# Secrets and local configuration (keep the template)
+.env
+.env.*
+!.env.example
+
+# Local data: SQLite database (+ WAL side files), legacy analytics log, uploads
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.sqlite*
+data/analytics.json
+static/uploads/
+
+# Logs and temporary files
+*.log
+*.tmp
+tmp/
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
 .DS_Store
 Thumbs.db
+desktop.ini

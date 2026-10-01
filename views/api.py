@@ -3,10 +3,11 @@ JSON API: the support chat assistant (OpenAI, server-side key).
 """
 import os
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from openai import OpenAI
 
-from services.listing import format_product_price
+from services.currency import convert, format_price
+from services.listing import format_product_price, get_base_currency
 from services.ratelimit import RateLimiter
 import services.store as store
 from services.web import client_ip, get_current_currency, get_current_locale, tr_msg
@@ -30,10 +31,16 @@ def chat_catalog_summary(limit: int = 30) -> str:
     lines = []
     for p in store.list_public_products()[:limit]:
         availability = "in stock" if (p.get("stock") or 0) > 0 else "out of stock"
-        lines.append(
-            f"- {p['name']} ({p.get('category') or 'General'}): "
-            f"{format_product_price(p, currency)}, {availability}"
-        )
+        if p["has_variants"]:
+            packages = ", ".join(
+                f"{v['name']} {format_price(convert(v['price'], get_base_currency(p), currency), currency)}"
+                + ("" if v["stock"] > 0 else " (out of stock)")
+                for v in store.list_variants(p["id"], active_only=True)
+            )
+            price = f"packages: {packages or 'none available'}"
+        else:
+            price = format_product_price(p, currency)
+        lines.append(f"- {p['name']} ({p.get('category') or 'General'}): {price}, {availability}")
     return "\n".join(lines) or "- (no active listings)"
 
 
@@ -47,8 +54,9 @@ def chat():
     - Rate limited per client IP to protect API credits.
     """
 
-    data = request.get_json(silent=True) or {}
-    user_message = (data.get("message") or "").strip()
+    data = request.get_json(silent=True)
+    message = data.get("message") if isinstance(data, dict) else None
+    user_message = message.strip() if isinstance(message, str) else ""
 
     if not user_message:
         return jsonify({"error": tr_msg("chat_error_empty")}), 400
@@ -60,14 +68,7 @@ def chat():
     api_key = chat_api_key()
     if not api_key:
         # Frontend will gracefully fall back to FAQ answers.
-        return (
-            jsonify(
-                {
-                    "error": "AI chat is not configured on the server. Please add OPENAI_API_KEY in .env."
-                }
-            ),
-            503,
-        )
+        return jsonify({"error": tr_msg("chat_error_unavailable")}), 503
 
     limit_key = client_ip()
     if chat_limiter.retry_after(limit_key):
@@ -96,14 +97,6 @@ def chat():
         )
         answer = completion.choices[0].message.content.strip()
         return jsonify({"answer": answer})
-    except Exception as exc:  # noqa: BLE001
-        # Avoid leaking internal error details to the client.
-        print(f"AI chat error: {exc}")  # log server-side
-        return (
-            jsonify(
-                {
-                    "error": "There was a problem contacting the AI assistant. Please try again later."
-                }
-            ),
-            502,
-        )
+    except Exception:  # noqa: BLE001 - never leak provider errors to the browser
+        current_app.logger.exception("AI chat request failed")
+        return jsonify({"error": tr_msg("chat_error_upstream")}), 502

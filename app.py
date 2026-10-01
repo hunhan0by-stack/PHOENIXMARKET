@@ -218,6 +218,25 @@ def not_found(error):  # noqa: D401, ARG001
     return render_template("404.html"), 404
 
 
+_FALLBACK_ERROR_PAGE = (
+    "<!doctype html><meta charset='utf-8'><title>PHOENIXMARKET</title>"
+    "<body style='background:#020617;color:#e2e8f0;font-family:sans-serif;text-align:center;padding:4rem'>"
+    "<h1>Something went wrong</h1><p>Please try again in a moment.</p><p><a href='/' style='color:#fb923c'>Home</a></p>"
+)
+
+
+@app.errorhandler(500)
+def server_error(error):  # noqa: ARG001
+    """Unexpected errors: a friendly page, never a traceback (Flask logs the exception)."""
+    if request.path.startswith("/api/"):
+        return jsonify({"error": tr_msg("error_heading")}), 500
+    try:
+        return render_template("500.html"), 500
+    except Exception:  # noqa: BLE001 - e.g. the database itself is unavailable
+        app.logger.exception("Rendering the error page failed")
+        return _FALLBACK_ERROR_PAGE, 500
+
+
 @app.errorhandler(413)
 def request_too_large(error):  # noqa: ARG001
     """Uploads above MAX_CONTENT_LENGTH."""

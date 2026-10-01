@@ -83,3 +83,46 @@ def test_admin_login_keeps_customer_session(make_client):
     assert s.get("is_admin") and s["user"]["id"]
     html = c.html("/")
     assert "Admin logout" in html and "Admin Panel" in html
+
+
+# --- sessions follow the account's password ------------------------------------------
+def test_password_change_signs_out_other_sessions(make_client):
+    laptop, phone = make_client(), make_client(ip="10.0.0.2")
+    laptop.signup()
+    phone.signin()
+    assert phone.get("/account").status_code == 200
+    laptop.post("/account/password", {
+        "current_password": "longenough", "new_password": "evenlonger1", "confirm_password": "evenlonger1",
+    })
+    assert laptop.get("/account").status_code == 200  # the device that changed it stays in
+    r = phone.get("/account")
+    assert r.status_code == 302 and r.headers["Location"].endswith("/signin")
+    assert not phone.session().get("user")
+
+
+def test_password_reset_signs_out_other_sessions_and_link_works_once(make_client):
+    old_device = make_client()
+    old_device.signup(email="reset@x.com")
+    user_id = old_device.user_id()
+    in_app(store.create_password_reset, user_id, "reset-token-1", 3600)
+    reset = in_app(store.get_valid_password_reset, "reset-token-1")
+    assert in_app(store.complete_password_reset, reset["id"], user_id, "hash-1") is True
+    # A second submit of the same link (double click, second tab) changes nothing
+    assert in_app(store.complete_password_reset, reset["id"], user_id, "hash-2") is False
+    assert in_app(store.get_user, user_id)["password_hash"] == "hash-1"
+    assert old_device.get("/account").status_code == 302
+
+
+def test_sessions_from_before_versioning_stay_valid(client):
+    client.signup()
+    with client.c.session_transaction() as s:
+        s["user"].pop("v")  # cookie issued by the previous release
+    assert client.get("/account").status_code == 200
+
+
+def test_signup_is_rate_limited_per_ip(make_client):
+    for n in range(5):
+        assert make_client(ip="10.7.0.1").signup(email=f"u{n}@x.com").status_code == 302
+    r = make_client(ip="10.7.0.1").signup(email="u5@x.com")
+    assert r.status_code == 429 and in_app(store.get_user_by_email, "u5@x.com") is None
+    assert make_client(ip="10.7.0.2").signup(email="u6@x.com").status_code == 302
