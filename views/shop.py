@@ -17,7 +17,7 @@ from flask import (
 )
 from markupsafe import escape
 
-from services.currency import convert
+from services.currency import convert, format_price
 from services.listing import get_base_currency, get_base_price
 import services.notifications as notifications
 from services.pagination import Page
@@ -32,6 +32,7 @@ from services.web import (
     SUPPORTED_LOCALES,
     client_ip,
     current_user,
+    get_current_currency,
     get_current_locale,
     is_admin,
     safe_back,
@@ -114,9 +115,12 @@ def product_detail(slug_or_id):
     if product.get("status") != "active" and not is_admin():
         abort(404)
     user = current_user()
+    packages = product_packages(product) if product["has_variants"] else []
     return render_template(
         "product_detail.html",
         product=product,
+        packages=packages,
+        default_package_id=next((v["id"] for v in packages if v["stock"] > 0), None),
         reviews=store.list_product_reviews(product["id"]),
         user_review=store.get_user_review(user["id"], product["id"]) if user else None,
         can_review=bool(user) and store.user_can_review(user["id"], product["id"]),
@@ -125,6 +129,16 @@ def product_detail(slug_or_id):
         jsonld=product_jsonld(product),
         image_url=absolute_url(product_image_url(product)),
     )
+
+
+def product_packages(product: dict) -> list:
+    """Active packages with their price formatted in the visitor's currency."""
+    currency = get_current_currency()
+    base_currency = get_base_currency(product)
+    packages = store.list_variants(product["id"], active_only=True)
+    for v in packages:
+        v["display_price"] = format_price(convert(v["price"], base_currency, currency), currency)
+    return packages
 
 
 def related_products(product: dict, limit: int = 4) -> list:
@@ -165,6 +179,11 @@ def product_jsonld(product: dict) -> dict:
             "url": url_for("shop.product_detail", slug_or_id=product["slug"], _external=True),
         },
     }
+    if product.get("price_from"):
+        offers = data["offers"]
+        offers["@type"] = "AggregateOffer"
+        offers["lowPrice"] = offers.pop("price")
+        offers["highPrice"] = f"{product['max_price']:.2f}"
     image = absolute_url(product_image_url(product))
     if image:
         data["image"] = image

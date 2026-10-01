@@ -1,3 +1,4 @@
+import hashlib
 import os
 from pathlib import Path
 
@@ -116,6 +117,12 @@ if os.getenv("RENDER"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 register_blueprints(app)
+
+# Cache-busting token for the compiled stylesheet (changes whenever it is rebuilt)
+_css_path = app_root / "static" / "css" / "app.css"
+ASSET_VERSION = (
+    hashlib.sha256(_css_path.read_bytes()).hexdigest()[:10] if _css_path.exists() else "dev"
+)
 
 
 @app.context_processor

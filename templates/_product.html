@@ -1,5 +1,5 @@
 {# Shared listing UI. Import with:
-   {% from "_product.html" import product_card, favorite_button, product_image, rating_stars, stock_badge, cart_button with context %} #}
+   {% from "_product.html" import product_card, favorite_button, product_image, rating_stars, stock_badge, cart_button, product_price with context %} #}
 
 {% macro favorite_button(product, extra_class="") %}
   {%- set saved = product.id in favorite_ids -%}
@@ -13,29 +13,30 @@
   </form>
 {% endmacro %}
 
-{% macro product_card(product) %}
+{# heading: the card title's level, one below the page section it sits in #}
+{% macro product_card(product, heading='h3') %}
   {%- set detail_url = url_for('shop.product_detail', slug_or_id=product.slug) -%}
-  <article class="relative flex flex-col rounded-2xl border border-slate-800 bg-slate-950/80 p-5 hover:border-brandOrange/80 hover:bg-slate-950 transition-colors">
-    {{ favorite_button(product, "absolute right-7 top-7 z-10") }}
-    {{ product_image(product, "mb-3 h-32 w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900", "flex h-full w-full items-center justify-center bg-slate-800/90 px-2 text-center text-[10px] font-medium uppercase tracking-wider text-slate-500") }}
-    <h3 class="text-sm font-semibold text-slate-50"><a href="{{ detail_url }}" class="hover:text-brandOrange">{{ product.name }}</a></h3>
+<article class="relative flex flex-col rounded-2xl border border-slate-800 bg-slate-950/80 p-5 hover:border-brandOrange/80 hover:bg-slate-950 transition-colors">
+    {{ favorite_button(product, "absolute right-5 top-5 z-10 sm:right-7 sm:top-7") }}
+    {{ product_image(product, "mb-3 h-24 w-full overflow-hidden sm:h-32 rounded-xl border border-slate-800 bg-slate-900", "flex h-full w-full items-center justify-center bg-slate-800/90 px-2 text-center text-[10px] font-medium uppercase tracking-wider text-slate-500") }}
+    <{{ heading }} class="text-sm font-semibold text-slate-50"><a href="{{ detail_url }}" class="hover:text-brandOrange">{{ product.name }}</a></{{ heading }}>
     {{ rating_stars(product.avg_rating, product.review_count) }}
     <p class="mt-1 text-[11px] text-slate-400">
       {{ product.category }}
     </p>
-    <p class="mt-2 text-xs text-slate-400 line-clamp-3">
+    <p class="mt-2 text-xs text-slate-400 line-clamp-2 sm:line-clamp-3">
       {{ product.description }}
     </p>
-    <div class="mt-2 flex items-center justify-between">
+    <div class="mt-2 flex flex-wrap items-center justify-between gap-1">
       <p class="text-sm font-semibold text-brandOrange">
-        {{ format_product_price(product) }}
+        {{ product_price(product) }}
       </p>
       <span class="flex items-center gap-1">
         {{ stock_badge(product) }}
         <span class="rounded bg-slate-700 px-1.5 py-0.5 text-[10px] font-semibold text-slate-200">{{ get_listing_language_badge(product) }}</span>
       </span>
     </div>
-    <div class="mt-auto flex flex-col gap-2 pt-4">
+    <div class="mt-auto flex flex-col gap-2 pt-3 sm:pt-4">
       {{ cart_button(product, "w-full rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black") }}
       <a href="{{ detail_url }}" class="w-full rounded-full border border-slate-700 px-4 py-2 text-[11px] text-slate-200 hover:border-brandOrange hover:text-brandOrange text-center">
         {{ t('view_details') }}
@@ -74,11 +75,24 @@
   {%- endif -%}
 {% endmacro %}
 
+{# "From $X" for listings whose packages have different prices #}
+{% macro product_price(product) -%}
+  {%- if product.price_from -%}
+    {{ t('price_from').format(price=format_product_price(product)) }}
+  {%- else -%}
+    {{ format_product_price(product) }}
+  {%- endif -%}
+{%- endmacro %}
+
 {% macro cart_button(product, button_class, form_class="") %}
   {% if (product.stock or 0) <= 0 %}
     <button type="button" disabled class="{{ button_class }} cursor-not-allowed opacity-40 grayscale">
       {{ t('out_of_stock') }}
     </button>
+  {% elif product.has_variants %}
+    <a href="{{ url_for('shop.product_detail', slug_or_id=product.slug) }}#packages" class="{{ button_class }} block text-center">
+      {{ t('choose_package') }}
+    </a>
   {% else %}
     <form method="post" action="{{ url_for('orders.add_to_cart', product_id=product.id) }}" class="{{ form_class }}">
       {{ csrf_field() }}

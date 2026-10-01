@@ -16,7 +16,19 @@ from flask import (
     url_for,
 )
 
-from services.cart import build_cart_items, get_cart
+from services.cart import (
+    MAX_LINE_QUANTITY,
+    CartLineError,
+    available_stock,
+    build_cart_items,
+    cart_key,
+    get_cart,
+    line_name,
+    prune_cart,
+    purchasable_line,
+    resolve_cart_key,
+    save_cart,
+)
 import services.coupons as coupons
 from services.currency import convert, format_price
 import services.notifications as notifications
@@ -64,7 +76,9 @@ def session_coupon(subtotal_usd: float, currency: str):
 @bp.route("/cart")
 def cart():
     currency = get_current_currency()
-    items, subtotal_usd, subtotal_display = build_cart_items(get_cart(), currency)
+    cart_data = get_cart()
+    items, subtotal_usd, subtotal_display = build_cart_items(cart_data, currency)
+    prune_cart(cart_data, items)
     coupon, _discount_usd, discount_display = (
         session_coupon(subtotal_usd, currency) if items else (None, 0.0, 0.0)
     )
@@ -105,56 +119,65 @@ def remove_coupon():
     return redirect(url_for("orders.cart"))
 
 
+def requested_quantity(raw, default: int) -> int:
+    """Quantity from a form field, clamped to 0..MAX_LINE_QUANTITY."""
+    try:
+        qty = int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+    return max(0, min(qty, MAX_LINE_QUANTITY))
+
+
 @bp.route("/cart/add/<int:product_id>", methods=["POST"])
 def add_to_cart(product_id):
-    product = store.get_product(product_id)
-    if not product or product.get("status") != "active":
-        flash(tr_msg("flash_product_unavailable"), "error")
+    try:
+        product, variant, stock = purchasable_line(product_id, request.form.get("variant_id"))
+    except CartLineError as err:
+        flash(tr_msg(err.key, **err.params), "error")
+        if err.key in ("flash_choose_package", "flash_package_unavailable"):
+            # The package picker lives on the product page
+            listing = store.get_product(product_id)
+            if listing and listing.get("status") == "active":
+                return redirect(url_for("shop.product_detail", slug_or_id=listing["slug"]))
         return safe_back("shop.products")
-    stock = int(product.get("stock") or 0)
-    if stock <= 0:
-        flash(tr_msg("flash_out_of_stock", name=product["name"]), "error")
-        return safe_back("shop.products")
+    qty = max(1, requested_quantity(request.form.get("qty"), 1))
     cart_data = get_cart()
-    key = str(product_id)
-    current = cart_data.get(key, 0)
-    if current + 1 > stock:
+    key = cart_key(product["id"], variant["id"] if variant else None)
+    current = int(cart_data.get(key, 0))
+    if current + qty > stock:
         cart_data[key] = stock
-        session["cart"] = cart_data
-        flash(tr_msg("flash_stock_limit", n=stock, name=product["name"]), "error")
+        save_cart(cart_data)
+        flash(tr_msg("flash_stock_limit", n=stock, name=line_name(product, variant)), "error")
         return safe_back("shop.products")
-    cart_data[key] = current + 1
-    session["cart"] = cart_data
+    cart_data[key] = current + qty
+    save_cart(cart_data)
     flash(tr_msg("flash_added_to_cart"), "success")
     return safe_back("shop.products")
 
 
-@bp.route("/cart/update/<int:product_id>", methods=["POST"])
-def update_cart(product_id):
-    qty_raw = request.form.get("qty", "1")
-    try:
-        qty = max(0, int(qty_raw))
-    except ValueError:
-        qty = 1
+@bp.route("/cart/update/<key>", methods=["POST"])
+def update_cart(key):
+    """Set the quantity of one cart line ("12" or "12:3"); 0 removes it."""
+    qty = requested_quantity(request.form.get("qty", "1"), 1)
     cart_data = get_cart()
-    key = str(product_id)
-    product = store.get_product(product_id)
+    product, variant = resolve_cart_key(key)
     if qty == 0 or not product:
         cart_data.pop(key, None)
-        session["cart"] = cart_data
+        save_cart(cart_data)
         flash(tr_msg("flash_cart_updated"), "success")
         return redirect(url_for("orders.cart"))
-    stock = int(product.get("stock") or 0) if product.get("status") == "active" else 0
+    key = cart_key(product["id"], variant["id"] if variant else None)
+    stock = available_stock(product, variant)
     if qty > stock:
         qty = stock
-        flash(tr_msg("flash_stock_limit", n=stock, name=product["name"]), "error")
+        flash(tr_msg("flash_stock_limit", n=stock, name=line_name(product, variant)), "error")
     else:
         flash(tr_msg("flash_cart_updated"), "success")
     if qty == 0:
         cart_data.pop(key, None)
     else:
         cart_data[key] = qty
-    session["cart"] = cart_data
+    save_cart(cart_data)
     return redirect(url_for("orders.cart"))
 
 
@@ -167,9 +190,13 @@ def checkout():
 
     currency = get_current_currency()
     items, subtotal_base, subtotal_display = build_cart_items(cart_data, currency)
+    prune_cart(cart_data, items)
+    if not items:
+        flash(tr_msg("flash_cart_empty"), "error")
+        return redirect(url_for("shop.products"))
     short = next((i for i in items if i["insufficient"]), None)
     if short:
-        flash(tr_msg("flash_checkout_stock", name=short["product"]["name"]), "error")
+        flash(tr_msg("flash_checkout_stock", name=short["name"]), "error")
         return redirect(url_for("orders.cart"))
 
     had_coupon = bool(session.get(COUPON_SESSION_KEY))
@@ -203,21 +230,18 @@ def checkout():
             return render_template("checkout.html", items=items, form=form, **totals)
 
         tracking_token = str(uuid.uuid4())
-        line_items = []
-        for item in items:
-            p = item["product"]
-            line_items.append(
-                {
-                    "product_id": p["id"],
-                    "product_name": p["name"],
-                    "quantity": item["qty"],
-                    "unit_price_usd": convert(
-                        get_base_price(p),
-                        get_base_currency(p),
-                        "USD",
-                    ),
-                }
-            )
+        # Every price here was just recomputed from the database
+        line_items = [
+            {
+                "product_id": item["product"]["id"],
+                "product_name": item["product"]["name"],
+                "variant_id": item["variant"]["id"] if item["variant"] else None,
+                "variant_name": item["variant"]["name"] if item["variant"] else None,
+                "quantity": item["qty"],
+                "unit_price_usd": item["unit_price_usd"],
+            }
+            for item in items
+        ]
         try:
             order_id = store.create_order(
                 tracking_token=tracking_token,
@@ -285,13 +309,19 @@ def cancel(token):
     if order["fulfillment_status"] != "pending":
         flash(tr_msg("flash_order_cancel_not_allowed"), "error")
         return redirect(url_for("orders.track", token=token))
-    changes = store.update_order_fulfillment(
-        order["id"],
-        fulfillment_status="cancelled",
-        tracking_number=order["tracking_number"],
-        carrier_note=order["carrier_note"],
-        actor="customer",
-    )
+    try:
+        changes = store.update_order_fulfillment(
+            order["id"],
+            fulfillment_status="cancelled",
+            tracking_number=order["tracking_number"],
+            carrier_note=order["carrier_note"],
+            actor="customer",
+            expected_status="pending",
+        )
+    except store.OrderChangedError:
+        # Someone (or a double click) changed the order first
+        flash(tr_msg("flash_order_cancel_not_allowed"), "error")
+        return redirect(url_for("orders.track", token=token))
     flash(tr_msg("flash_order_cancelled"), "success")
     try:
         notifications.send_order_update(store.get_order_by_id(order["id"]), changes)

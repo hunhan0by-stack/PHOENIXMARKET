@@ -4,7 +4,7 @@ Orders: checkout (atomic stock/coupon reservation), status changes, payments, sa
 from datetime import datetime, timedelta, timezone
 
 from services.database import get_db
-from services.store.base import CouponUnavailableError, OutOfStockError, PaymentNotAllowedError, _like, _parse_dt
+from services.store.base import CouponUnavailableError, OrderChangedError, OutOfStockError, PaymentNotAllowedError, _like, _parse_dt
 
 
 def _order_items_for(order_id: int) -> list:
@@ -183,13 +183,22 @@ def _reserve_stock(db, line_items: list, require_active: bool = True) -> None:
                 (qty, int(li["variant_id"]), int(li["product_id"]), qty),
             )
         else:
-            status_clause = "AND status = 'active'" if require_active else ""
+            # A new order line without a package can never buy a listing that
+            # is sold per package (its own stock/price are not for sale).
+            status_clause = (
+                "AND status = 'active' AND NOT EXISTS "
+                "(SELECT 1 FROM product_variants WHERE product_id = products.id)"
+                if require_active else ""
+            )
             cur = db.execute(
                 f"UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ? {status_clause}",
                 (qty, int(li["product_id"]), qty),
             )
         if cur.rowcount != 1:
-            raise OutOfStockError(li.get("display_name") or li["product_name"])
+            name = li["product_name"]
+            if li.get("variant_name"):
+                name += f" – {li['variant_name']}"
+            raise OutOfStockError(name)
 
 
 def _release_stock(db, line_items: list) -> None:
@@ -390,11 +399,12 @@ def sales_report(days: int = 30) -> dict:
         dict(r)
         for r in db.execute(
             """
-            SELECT i.product_name AS name, SUM(i.quantity) AS quantity,
+            SELECT i.product_name || COALESCE(' – ' || i.variant_name, '') AS name,
+                   SUM(i.quantity) AS quantity,
                    ROUND(SUM(i.quantity * i.unit_price_usd), 2) AS gross
             FROM order_items i JOIN orders o ON o.id = i.order_id
             WHERE o.created_at >= ? AND o.fulfillment_status != 'cancelled'
-            GROUP BY i.product_id, i.product_name
+            GROUP BY i.product_id, i.product_name, i.variant_name
             ORDER BY gross DESC LIMIT 5
             """,
             (since,),
@@ -432,11 +442,15 @@ def update_order_fulfillment(
     tracking_number: str | None,
     carrier_note: str | None,
     actor: str = "admin",
+    expected_status: str | None = None,
 ) -> list:
     """
     Cancelling an order returns its stock; un-cancelling reserves it again
     (raises OutOfStockError if the stock is no longer available). Orders placed
     before stock tracking (stock_reserved = 0) never touch stock.
+    expected_status: the status the caller based its decision on; raises
+    OrderChangedError when the order has moved on since (stale form, double
+    submit, concurrent change).
     Each change is added to the order timeline (a customer's own cancellation
     as "cancelled_by_customer"). Returns the list of event types recorded
     (empty when nothing changed or the order does not exist).
@@ -452,11 +466,23 @@ def update_order_fulfillment(
     if not row:
         return []
     old_status = row["fulfillment_status"]
+    if expected_status is not None and expected_status != old_status:
+        raise OrderChangedError(order_id)
     was_cancelled = old_status == "cancelled"
     now_cancelled = fulfillment_status == "cancelled"
     now = datetime.now(timezone.utc).isoformat()
     recorded = []
     try:
+        if old_status != fulfillment_status:
+            # Compare-and-set: of two simultaneous changes from the same status
+            # (e.g. a customer and an admin cancelling at once) only the first
+            # wins, so stock is returned or reserved exactly once.
+            claimed = db.execute(
+                "UPDATE orders SET fulfillment_status = ? WHERE id = ? AND fulfillment_status = ?",
+                (fulfillment_status, order_id, old_status),
+            ).rowcount
+            if claimed != 1:
+                raise OrderChangedError(order_id)
         if row["stock_reserved"] and was_cancelled != now_cancelled:
             items = _order_items_for(order_id)
             if now_cancelled:

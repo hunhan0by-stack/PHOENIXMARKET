@@ -20,6 +20,10 @@ class CouponUnavailableError(Exception):
     """Raised when a coupon was used up or disabled while the order was placed."""
 
 
+class OrderChangedError(Exception):
+    """Raised when an order's status was changed by someone else in the meantime."""
+
+
 def slugify(value: str) -> str:
     value = (value or "").strip().lower()
     value = re.sub(r"[^a-z0-9]+", "-", value)

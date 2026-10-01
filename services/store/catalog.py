@@ -13,15 +13,19 @@ def _product_from_row(row) -> dict:
     d["updated_at"] = _parse_dt(d.get("updated_at")) or datetime.now(timezone.utc)
     d["avg_rating"] = round(float(d.get("avg_rating") or 0), 1)
     d["review_count"] = int(d.get("review_count") or 0)
-    # Listings with packages are priced and stocked per package: expose the
-    # cheapest package as base_price and the summed package stock as stock,
-    # keeping the listing's own columns as own_price / own_stock.
+    # A listing with packages is sold per package only: expose the cheapest
+    # active package as base_price and the summed active-package stock as stock,
+    # keeping the listing's own columns as own_price / own_stock. With every
+    # package inactive the listing simply has nothing to sell (stock 0).
     d["has_variants"] = bool(d.get("variant_count"))
+    d["price_from"] = False
     if d["has_variants"]:
         d["own_price"], d["own_stock"] = d.get("base_price"), d.get("stock")
-        d["base_price"] = float(d["min_price"])
-        d["max_price"] = float(d["max_price"])
-        d["stock"] = int(d["variant_stock"] or 0)
+        if d.get("min_price") is not None:
+            d["base_price"] = float(d["min_price"])
+            d["max_price"] = float(d["max_price"])
+            d["price_from"] = d["max_price"] > d["base_price"]
+        d["stock"] = int(d.get("variant_stock") or 0)
     img = d.get("image") or ""
     if img.startswith("/static/"):
         d["image"] = img
@@ -47,9 +51,11 @@ PRODUCT_SELECT = """
         FROM reviews WHERE status = 'published' GROUP BY product_id
     ) r ON r.product_id = p.id
     LEFT JOIN (
-        SELECT product_id, COUNT(*) AS variant_count, SUM(stock) AS variant_stock,
-               MIN(price) AS min_price, MAX(price) AS max_price
-        FROM product_variants WHERE active = 1 GROUP BY product_id
+        SELECT product_id, COUNT(*) AS variant_count,
+               SUM(CASE WHEN active = 1 THEN stock ELSE 0 END) AS variant_stock,
+               MIN(CASE WHEN active = 1 THEN price END) AS min_price,
+               MAX(CASE WHEN active = 1 THEN price END) AS max_price
+        FROM product_variants GROUP BY product_id
     ) v ON v.product_id = p.id
 """
 

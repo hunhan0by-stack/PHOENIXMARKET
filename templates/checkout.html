@@ -13,24 +13,25 @@
     <div class="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
       <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm">
         {{ csrf_field() }}
+        <input type="hidden" name="quote" value="{{ quote }}">
         <h2 class="text-sm font-semibold text-slate-100 mb-2">{{ t('checkout_billing') }}</h2>
         {% if not current_user %}
           <p class="rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-[11px] text-slate-400">
             {{ t('checkout_guest_note') }}
-            <a href="{{ url_for('account.signin') }}" class="text-brandOrange hover:text-amber-200">{{ t('nav_sign_in') }}</a>
+            <a href="{{ url_for('account.signin') }}" class="text-brandOrange underline hover:text-amber-200">{{ t('nav_sign_in') }}</a>
           </p>
         {% endif %}
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">{{ t('checkout_full_name') }}</label>
-          <input type="text" name="full_name" value="{{ form.full_name }}" autocomplete="name" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" required>
+          <label for="f-full-name" class="block text-xs font-medium text-slate-300 mb-1">{{ t('checkout_full_name') }}</label>
+          <input id="f-full-name" type="text" name="full_name" value="{{ form.full_name }}" autocomplete="name" maxlength="{{ max_lengths.full_name }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" required>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">{{ t('checkout_email') }}</label>
-          <input type="email" name="email" value="{{ form.email }}" autocomplete="email" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" required>
+          <label for="f-email" class="block text-xs font-medium text-slate-300 mb-1">{{ t('checkout_email') }}</label>
+          <input id="f-email" type="email" name="email" value="{{ form.email }}" autocomplete="email" maxlength="{{ max_lengths.email }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" required>
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1">{{ t('checkout_notes') }}</label>
-          <textarea name="notes" rows="4" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" placeholder="{{ t('checkout_notes_placeholder') }}">{{ form.notes }}</textarea>
+          <label for="f-notes" class="block text-xs font-medium text-slate-300 mb-1">{{ t('checkout_notes') }}</label>
+          <textarea id="f-notes" name="notes" rows="4" maxlength="{{ max_lengths.notes }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" placeholder="{{ t('checkout_notes_placeholder') }}">{{ form.notes }}</textarea>
         </div>
         <p class="text-[11px] text-slate-500">
           {{ site_content.checkout_helper_text }}
@@ -40,13 +41,13 @@
         </button>
       </form>
 
-      <aside class="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm text-slate-200">
+      <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm text-slate-200">
         <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('cart_order_summary') }}</h2>
         <div class="space-y-3 text-xs">
           {% for item in items %}
             <div class="flex items-center justify-between gap-3">
               <div>
-                <p class="text-slate-100">{{ item.product.name }}</p>
+                <p class="text-slate-100">{{ item.name }}</p>
                 <p class="text-slate-500">{{ t('checkout_qty') }} {{ item.qty }}</p>
               </div>
               <p class="text-slate-100">
@@ -74,7 +75,7 @@
             {{ t('checkout_tax_note') }}
           </p>
         </div>
-      </aside>
+      </div>
     </div>
   </div>
 </section>

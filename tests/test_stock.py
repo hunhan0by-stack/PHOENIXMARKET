@@ -113,3 +113,32 @@ def test_pre_v2_orders_never_touch_stock(admin):
     assert in_app(store.get_order_by_id, order_id)["fulfillment_status"] == "cancelled"
     admin.post(f"/admin/orders/{order_id}", {"fulfillment_status": "pending"})
     assert stock_of(4) == before
+
+
+def test_stale_admin_form_cannot_reopen_an_order_the_customer_cancelled(client, admin):
+    set_stock(1, 2)
+    client.post("/cart/add/1")
+    checkout(client)
+    order = in_app(store.list_orders_admin)[0]
+    admin.html(f"/admin/orders/{order['id']}")  # admin opens the form while it is pending
+    client.post(f"/track/{order['tracking_token']}/cancel")
+    assert stock_of(1) == 2
+    admin.post(f"/admin/orders/{order['id']}", {"fulfillment_status": "processing", "current_status": "pending"})
+    assert in_app(store.get_order_by_id, order["id"])["fulfillment_status"] == "cancelled"
+    assert stock_of(1) == 2
+    assert any("changed in the meantime" in m for m in admin.flashes())
+
+
+def test_status_change_is_applied_once_for_the_same_starting_status():
+    set_stock(1, 3)
+    order_id = in_app(
+        store.create_order, tracking_token="cas-1", user_email="c@x.com", full_name="C", notes="",
+        total_price=1, total_currency="USD",
+        line_items=[{"product_id": 1, "product_name": "Canva", "quantity": 2, "unit_price_usd": 1}],
+    )
+    kwargs = dict(fulfillment_status="cancelled", tracking_number=None, carrier_note=None,
+                  expected_status="pending")
+    in_app(store.update_order_fulfillment, order_id, **kwargs)
+    with pytest.raises(store.OrderChangedError):
+        in_app(store.update_order_fulfillment, order_id, **kwargs)
+    assert stock_of(1) == 3

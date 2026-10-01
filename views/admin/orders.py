@@ -92,15 +92,21 @@ def order_detail(order_id):
             status = order["fulfillment_status"]
         tracking_number = (request.form.get("tracking_number") or "").strip() or None
         carrier_note = (request.form.get("carrier_note") or "").strip() or None
+        # The status shown when the form was loaded (absent for older forms)
+        seen_status = (request.form.get("current_status") or "").strip().lower() or None
         try:
             changes = store.update_order_fulfillment(
                 order_id,
                 fulfillment_status=status,
                 tracking_number=tracking_number,
                 carrier_note=carrier_note,
+                expected_status=seen_status,
             )
         except store.OutOfStockError as exc:
             flash(tr_msg("flash_uncancel_stock", name=exc.product_name), "error")
+            return redirect(url_for("admin.order_detail", order_id=order_id))
+        except store.OrderChangedError:
+            flash(tr_msg("flash_order_changed_meanwhile"), "error")
             return redirect(url_for("admin.order_detail", order_id=order_id))
         flash(tr_msg("flash_order_updated"), "success")
         if status == "cancelled" and order["fulfillment_status"] != "cancelled":
