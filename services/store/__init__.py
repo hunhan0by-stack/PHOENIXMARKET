@@ -23,7 +23,39 @@ from services.store.base import (  # noqa: F401
     slugify,
     unique_slug,
 )
-from services.store.catalog import EFFECTIVE_STOCK, PRODUCT_SELECT, add_stock_alert, category_slugs_excluding, count_pending_stock_alerts, create_category, create_product, create_variant, delete_category, delete_product, delete_variant, get_category, get_category_by_slug, get_product, get_product_by_slug, get_variant, list_all_products, list_categories, list_existing_slugs, list_low_stock_products, list_public_products, list_variants, list_wishlist_products, mark_stock_alert_notified, pending_stock_alerts, toggle_wishlist, update_category, update_product, update_variant, wishlist_product_ids
+from services.store.catalog import (  # noqa: F401
+    EFFECTIVE_STOCK,
+    PRODUCT_SELECT,
+    add_stock_alert,
+    category_slugs_excluding,
+    count_pending_stock_alerts,
+    create_category,
+    create_product,
+    create_variant,
+    delete_category,
+    delete_product,
+    delete_variant,
+    get_category,
+    get_category_by_slug,
+    get_product,
+    get_product_by_slug,
+    get_variant,
+    list_all_products,
+    list_categories,
+    list_existing_slugs,
+    list_low_stock_products,
+    list_low_stock_variants,
+    list_public_products,
+    list_variants,
+    list_wishlist_products,
+    mark_stock_alert_notified,
+    pending_stock_alerts,
+    toggle_wishlist,
+    update_category,
+    update_product,
+    update_variant,
+    wishlist_product_ids,
+)
 from services.store.orders import add_order_internal_note, count_orders, count_orders_by_status, count_orders_filtered, count_orders_for_user, create_order, get_order_by_id, get_order_by_tracking_token, list_order_events, list_orders_admin, list_orders_for_user, record_payment, sales_report, search_orders, undo_payment, update_order_fulfillment
 from services.store.users import (  # noqa: F401
     complete_password_reset,
@@ -63,7 +95,21 @@ from services.store.reviews import (  # noqa: F401
     set_review_status,
     user_can_review,
 )
-from services.store.support import SUPPORT_STATUSES, count_emails, count_support_messages, create_outbox_entry, create_support_message, get_email, get_support_message, list_emails, list_support_messages, save_support_reply, set_support_status
+from services.store.support import (  # noqa: F401
+    SUPPORT_STATUSES,
+    count_emails,
+    count_support_messages,
+    create_outbox_entry,
+    create_support_message,
+    get_email,
+    get_support_message,
+    list_emails,
+    list_support_messages,
+    list_support_replies,
+    save_support_reply,
+    set_support_status,
+    support_customer_context,
+)
 from services.store.analytics import (  # noqa: F401
     ANALYTICS_MAX_ENTRIES,
     VISIT_RETENTION_DAYS,

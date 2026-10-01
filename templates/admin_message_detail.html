@@ -20,16 +20,16 @@
 
     <div class="mt-6 whitespace-pre-line rounded-2xl border border-slate-800 bg-slate-900/80 p-5 text-sm text-slate-200">{{ message.message }}</div>
 
-    {% if message.admin_reply %}
-      <div class="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 text-sm">
-        <p class="mb-2 text-xs text-emerald-300">{{ t('adm_your_reply') }} · {{ message.replied_at.strftime('%Y-%m-%d %H:%M UTC') if message.replied_at else '' }}</p>
-        <p class="whitespace-pre-line text-slate-200">{{ message.admin_reply }}</p>
+    {% for reply in replies %}
+      <div class="mt-4 ml-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 text-sm sm:ml-10">
+        <p class="mb-2 text-xs text-emerald-300">{{ t('adm_your_reply') }} · {{ reply.created_at.strftime('%Y-%m-%d %H:%M UTC') if reply.created_at else '' }}</p>
+        <p class="whitespace-pre-line text-slate-200">{{ reply.body }}</p>
       </div>
-    {% endif %}
+    {% endfor %}
 
     <form method="post" class="mt-6 space-y-3 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm">
       {{ csrf_field() }}
-      <label for="reply" class="block text-xs font-medium text-slate-300">{{ 'Send another reply' if message.admin_reply else 'Reply by email' }}</label>
+      <label for="reply" class="block text-xs font-medium text-slate-300">{{ t('adm_send_another_reply') if replies else t('adm_reply_by_email') }}</label>
       <textarea id="reply" name="reply" rows="6" maxlength="5000" required class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none"></textarea>
       <label class="flex items-center gap-2 text-xs text-slate-300">
         <input type="checkbox" name="close" value="1" checked class="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-orange-500">
@@ -41,8 +41,39 @@
     <form method="post" action="{{ url_for('admin.message_status', message_id=message.id) }}" class="mt-3">
       {{ csrf_field() }}
       <input type="hidden" name="status" value="{{ 'open' if message.status == 'closed' else 'closed' }}">
-      <button class="text-xs text-slate-400 hover:text-brandOrange">{{ 'Reopen conversation' if message.status == 'closed' else 'Close without replying' }}</button>
+      <button class="text-xs text-slate-400 hover:text-brandOrange">{{ t('adm_reopen_conversation') if message.status == 'closed' else t('adm_close_without_reply') }}</button>
     </form>
+
+    {% if context.messages or context.orders %}
+      <section class="mt-10 grid gap-4 text-xs sm:grid-cols-2">
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <h2 class="mb-2 font-semibold text-slate-100">{{ t('adm_other_messages') }}</h2>
+          <ul class="space-y-1">
+            {% for m in context.messages %}
+              <li class="flex justify-between gap-2">
+                <a href="{{ url_for('admin.message_detail', message_id=m.id) }}" class="truncate text-slate-200 hover:text-brandOrange">{{ m.subject }}</a>
+                <span class="shrink-0 text-slate-500">{{ m.created_at.strftime('%Y-%m-%d') if m.created_at else '' }}</span>
+              </li>
+            {% else %}
+              <li class="text-slate-500">—</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
+          <h2 class="mb-2 font-semibold text-slate-100">{{ t('adm_customer_orders') }}</h2>
+          <ul class="space-y-1">
+            {% for o in context.orders %}
+              <li class="flex justify-between gap-2">
+                <a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="text-slate-200 hover:text-brandOrange">#{{ o.id }} · ${{ "%.2f"|format(o.total_price) }}</a>
+                <span class="shrink-0 text-slate-500">{{ t('status_' ~ o.fulfillment_status) }}</span>
+              </li>
+            {% else %}
+              <li class="text-slate-500">—</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    {% endif %}
   </div>
 </section>
 {% endblock %}

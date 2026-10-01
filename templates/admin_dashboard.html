@@ -163,7 +163,7 @@
     <div class="mt-10">
       <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('admin_low_stock') }} (≤ {{ LOW_STOCK_THRESHOLD }})</h2>
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4 text-[11px]">
-        {% if low_stock_products %}
+        {% if low_stock_products or low_stock_packages %}
           <ul class="divide-y divide-slate-800">
             {% for p in low_stock_products %}
               <li class="flex items-center justify-between py-2">
@@ -173,6 +173,18 @@
                 <span class="flex items-center gap-3">
                   <span class="font-semibold {{ 'text-red-400' if p.stock <= 0 else 'text-amber-300' }}">{{ p.stock }}</span>
                   <a href="{{ url_for('admin.edit_listing', product_id=p.id) }}" class="text-brandOrange hover:text-amber-200">{{ t('admin_edit_listing') }}</a>
+                </span>
+              </li>
+            {% endfor %}
+            {% for v in low_stock_packages %}
+              <li class="flex items-center justify-between py-2">
+                <span class="text-slate-100">{{ v.product_name }} – {{ v.name }}
+                  <span class="ml-1 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">{{ t('package_label') }}</span>
+                  {% if v.product_status != 'active' %}<span class="text-slate-500">({{ t('admin_status_inactive') }})</span>{% endif %}
+                </span>
+                <span class="flex items-center gap-3">
+                  <span class="font-semibold {{ 'text-red-400' if v.stock <= 0 else 'text-amber-300' }}">{{ v.stock }}</span>
+                  <a href="{{ url_for('admin.edit_listing', product_id=v.product_id) }}#packages" class="text-brandOrange hover:text-amber-200">{{ t('admin_packages_title') }}</a>
                 </span>
               </li>
             {% endfor %}

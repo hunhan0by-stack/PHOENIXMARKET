@@ -69,7 +69,9 @@ def dashboard():
         total_users=store.count_users(),
         categories=store.list_categories(),
         analytics=analytics,
-        low_stock_products=store.list_low_stock_products(),
+        # Listings sold per package are tracked per package instead
+        low_stock_products=[p for p in store.list_low_stock_products() if not p["has_variants"]],
+        low_stock_packages=store.list_low_stock_variants(),
         open_messages=store.count_support_messages("open"),
         sales=store.sales_report(30),
         status_counts=store.count_orders_by_status(),

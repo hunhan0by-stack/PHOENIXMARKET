@@ -340,3 +340,9 @@ def test_listing_without_packages_still_works_as_before(client):
     assert client.session()["cart"] == {"1": 2}
     checkout(client)
     assert stock_of(1) == 1
+
+
+def test_dashboard_flags_low_packages_individually(admin, instagram_packages):
+    html = admin.html("/admin/dashboard")
+    assert "Instagram Followers – 5K" in html  # 3 left
+    assert "Instagram Followers – 1K" not in html  # 10 left

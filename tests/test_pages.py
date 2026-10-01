@@ -71,3 +71,33 @@ def test_unexpected_error_shows_friendly_page_without_details(make_client, monke
     body = r.get_data(as_text=True)
     assert r.status_code == 500 and "Bir sorun oluştu" in body
     assert "secret internal detail" not in body and "Traceback" not in body
+
+
+def test_admin_pages_are_fully_translated(make_client):
+    """Every admin label has a Turkish text (a missing key would show up as its name)."""
+    import re
+
+    import services.store as store
+    from tests.helpers import in_app
+
+    c = make_client(locale="tr", ip="10.8.0.2")
+    c.login_admin()
+    # Data so the per-row labels render too: an order, a coupon, a review, a message, an email
+    c.post("/cart/add/1")
+    c.post("/checkout", {"full_name": "Ali", "email": "ali@x.com"})
+    c.post("/admin/coupons", {"code": "TRTEST", "kind": "percent", "value": "10", "active": "1"})
+    c.post("/contact", {"name": "Ali", "email": "ali@x.com", "subject": "Soru", "message": "Teslimat ne kadar sürer?"})
+    order_id = in_app(store.list_orders_admin)[0]["id"]
+    message_id = in_app(store.list_support_messages)[0]["id"]
+    pages = ADMIN + [f"/admin/orders/{order_id}", f"/admin/messages/{message_id}", "/admin/emails/1",
+                     "/admin/coupons/1/edit", "/admin/login"]
+    for path in pages:
+        if path.endswith(".csv"):
+            continue
+        html = c.html(path)
+        leftovers = sorted(set(re.findall(r"\b(?:adm|admin|status|flash|pagination)_[a-z0-9_]+\b", html)))
+        # Ignore identifiers that legitimately appear in markup (form field names, ids)
+        leftovers = [k for k in leftovers if f'name="{k}"' not in html and f'id="{k}"' not in html]
+        assert not leftovers, f"{path}: untranslated keys {leftovers}"
+    assert "Yönetim paneli" in c.html("/admin/dashboard")
+    assert "Siparişler" in c.html("/admin/orders")

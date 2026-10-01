@@ -51,7 +51,12 @@ def message_detail(message_id):
         except Exception:  # noqa: BLE001 - the reply is stored even if email fails
             current_app.logger.exception("Support reply email failed for message %s", message_id)
         return redirect(url_for("admin.message_detail", message_id=message_id))
-    return render_template("admin_message_detail.html", message=message)
+    return render_template(
+        "admin_message_detail.html",
+        message=message,
+        replies=store.list_support_replies(message_id),
+        context=store.support_customer_context(message["email"], message_id),
+    )
 
 
 @bp.route("/admin/messages/<int:message_id>/status", methods=["POST"])

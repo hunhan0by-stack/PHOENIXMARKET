@@ -61,12 +61,43 @@ def list_support_messages(status: str | None = None, limit: int = 30, offset: in
 
 
 def save_support_reply(message_id: int, reply: str, close: bool) -> None:
+    """Add a reply to the conversation history; admin_reply holds the latest one."""
     db = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    db.execute(
+        "INSERT INTO support_replies (message_id, body, created_at) VALUES (?, ?, ?)",
+        (message_id, reply, now),
+    )
     db.execute(
         "UPDATE support_messages SET admin_reply = ?, replied_at = ?, status = ? WHERE id = ?",
-        (reply, datetime.now(timezone.utc).isoformat(), "closed" if close else "open", message_id),
+        (reply, now, "closed" if close else "open", message_id),
     )
     db.commit()
+
+
+def list_support_replies(message_id: int) -> list:
+    db = get_db()
+    rows = db.execute(
+        "SELECT * FROM support_replies WHERE message_id = ? ORDER BY id ASC", (message_id,)
+    ).fetchall()
+    return [{**dict(r), "created_at": _parse_dt(r["created_at"])} for r in rows]
+
+
+def support_customer_context(email: str, exclude_message_id: int, limit: int = 10) -> dict:
+    """The sender's other support messages and their orders, for the admin inbox."""
+    db = get_db()
+    email = (email or "").strip().lower()
+    messages = db.execute(
+        "SELECT * FROM support_messages WHERE email = ? AND id != ? ORDER BY id DESC LIMIT ?",
+        (email, exclude_message_id, limit),
+    ).fetchall()
+    orders = db.execute(
+        "SELECT * FROM orders WHERE user_email = ? ORDER BY id DESC LIMIT ?", (email, limit)
+    ).fetchall()
+    return {
+        "messages": [_support_from_row(r) for r in messages],
+        "orders": [_order_from_row(r, include_items=False) for r in orders],
+    }
 
 
 def set_support_status(message_id: int, status: str) -> None:

@@ -103,6 +103,21 @@ def list_variants(product_id: int, active_only: bool = False) -> list:
     return [_variant_from_row(r) for r in rows]
 
 
+def list_low_stock_variants(threshold: int = LOW_STOCK_THRESHOLD) -> list:
+    """Active packages running low, with their listing's name and status."""
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT v.*, p.name AS product_name, p.status AS product_status
+        FROM product_variants v JOIN products p ON p.id = v.product_id
+        WHERE v.active = 1 AND v.stock <= ?
+        ORDER BY v.stock ASC, p.name ASC, v.sort_order ASC
+        """,
+        (threshold,),
+    ).fetchall()
+    return [_variant_from_row(r) for r in rows]
+
+
 def get_variant(variant_id: int):
     db = get_db()
     row = db.execute("SELECT * FROM product_variants WHERE id = ?", (variant_id,)).fetchone()

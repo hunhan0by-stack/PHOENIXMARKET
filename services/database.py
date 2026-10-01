@@ -188,6 +188,18 @@ def init_schema():
         );
 
         CREATE INDEX IF NOT EXISTS idx_support_status ON support_messages(status);
+        CREATE INDEX IF NOT EXISTS idx_support_email ON support_messages(email);
+
+        -- Every admin reply to a support message (the conversation history);
+        -- support_messages.admin_reply keeps the latest one.
+        CREATE TABLE IF NOT EXISTS support_replies (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id INTEGER NOT NULL REFERENCES support_messages(id) ON DELETE CASCADE,
+            body TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_support_replies_message ON support_replies(message_id);
 
         -- Packages of a listing (e.g. 1K / 5K / 10K followers), each with its own
         -- price (in the listing's base currency) and stock. A listing with at
@@ -256,6 +268,17 @@ def init_schema():
     _ensure_column(db, "order_items", "variant_id", "variant_id INTEGER")
     _ensure_column(db, "order_items", "variant_name", "variant_name TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
+    # Replies sent before the history table existed become its first entries
+    # (idempotent: only messages without any history row are copied).
+    db.execute(
+        """
+        INSERT INTO support_replies (message_id, body, created_at)
+        SELECT m.id, m.admin_reply, COALESCE(m.replied_at, m.created_at)
+        FROM support_messages m
+        WHERE m.admin_reply IS NOT NULL AND m.admin_reply != ''
+          AND NOT EXISTS (SELECT 1 FROM support_replies r WHERE r.message_id = m.id)
+        """
+    )
     # Line items are always read per order (order pages, emails, CSV export)
     db.execute("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)")
     # Sales report and date-ordered admin views
