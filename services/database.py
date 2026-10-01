@@ -256,6 +256,10 @@ def init_schema():
     _ensure_column(db, "order_items", "variant_id", "variant_id INTEGER")
     _ensure_column(db, "order_items", "variant_name", "variant_name TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
+    # Line items are always read per order (order pages, emails, CSV export)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)")
+    # Sales report and date-ordered admin views
+    db.execute("CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at)")
     db.commit()
 
 

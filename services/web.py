@@ -140,14 +140,13 @@ def csp_nonce() -> str:
 
 
 def content_security_policy() -> str:
-    script_src = "'self' https://cdn.tailwindcss.com"
+    script_src = "'self'"
     if "csp_nonce" in g:
         script_src += f" 'nonce-{g.csp_nonce}'"
     return "; ".join([
         "default-src 'self'",
         f"script-src {script_src}",
-        # Tailwind's CDN build injects <style> tags at runtime.
-        "style-src 'self' 'unsafe-inline'",
+        "style-src 'self'",
         "img-src 'self' data: https:",
         "font-src 'self' data:",
         "connect-src 'self'",

@@ -8,15 +8,22 @@
 
   <!-- SEO / social sharing -->
   <meta name="description" content="{% block meta_description %}{{ site_content.hero_subtitle|truncate(160) }}{% endblock %}" />
-  <link rel="canonical" href="{{ request.base_url }}" />
   {% if request.path.startswith(('/admin', '/account', '/cart', '/checkout', '/track', '/reset-password')) %}
     <meta name="robots" content="noindex, nofollow" />
+  {% else %}
+    {# Each language has its own address: plain URL for the default language, ?lang=xx otherwise #}
+    <link rel="canonical" href="{{ localized_url(locale) }}" />
+    {% for loc in SUPPORTED_LOCALES %}
+      <link rel="alternate" hreflang="{{ loc }}" href="{{ localized_url(loc) }}" />
+    {% endfor %}
+    <link rel="alternate" hreflang="x-default" href="{{ request.base_url }}" />
   {% endif %}
   <meta property="og:site_name" content="PHOENIXMARKET" />
   <meta property="og:title" content="{{ self.title() }}" />
   <meta property="og:description" content="{{ self.meta_description() }}" />
   <meta property="og:type" content="{% block og_type %}website{% endblock %}" />
-  <meta property="og:url" content="{{ request.base_url }}" />
+  <meta property="og:url" content="{{ localized_url(locale) }}" />
+  <meta property="og:locale" content="{{ 'tr_TR' if locale == 'tr' else 'en_US' }}" />
   <meta property="og:image" content="{% block og_image %}{{ url_for('static', filename='images/logo.png', _external=True) }}{% endblock %}" />
   <meta name="twitter:card" content="summary_large_image" />
   {% block head_extra %}{% endblock %}
@@ -25,53 +32,23 @@
   <link
     rel="icon"
     type="image/png"
-    href="{{ url_for('static', filename='images/favicon.png') }}"
+    href="{{ asset_url('images/logo-64.png') }}"
   />
 
-  <!-- TailwindCSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script nonce="{{ csp_nonce() }}">
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brandBg: "#020617",
-            brandSurface: "#020617",
-            brandBorder: "#1f2937",
-            brandRed: "#ef4444",
-            brandOrange: "#f97316"
-          },
-          fontFamily: {
-            sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"]
-          }
-        }
-      }
-    };
-  </script>
-  <style>
-    html {
-      scroll-behavior: smooth;
-      background: #020617;
-    }
-  </style>
-  <style>
-    .bg-grid {
-      background:
-        radial-gradient(circle at 0 0, rgba(239, 68, 68, 0.14), transparent 55%),
-        radial-gradient(circle at 100% 0, rgba(249, 115, 22, 0.12), transparent 55%),
-        radial-gradient(circle at 50% 100%, rgba(249, 115, 22, 0.16), transparent 60%);
-    }
-  </style>
+  <!-- Styles: compiled Tailwind + site CSS (source: static/css/input.css, see README) -->
+  <link rel="stylesheet" href="{{ asset_url('css/app.css') }}" />
 </head>
 <body class="bg-brandBg text-slate-100 font-sans antialiased" data-chat-api-enabled="{{ 'true' if chat_api_enabled else 'false' }}" data-locale="{{ locale }}">
   <div class="min-h-screen flex flex-col">
     <!-- NAVBAR -->
     <header class="relative z-40 border-b border-slate-800 bg-slate-950/90 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        <a href="{{ url_for('shop.index') }}" class="flex items-center gap-3">
+        <a href="{{ url_for('shop.index') }}" class="flex items-center gap-3" aria-label="PHOENIXMARKET – {{ t('nav_home') }}">
           <img
-            src="{{ url_for('static', filename='images/logo.png') }}"
-            alt="PHOENIXMARKET"
+            src="{{ asset_url('images/logo-64.png') }}"
+            width="32"
+            height="32"
+            alt=""
             class="h-8 max-h-12 w-auto rounded-md"
           >
           {# The wordmark does not fit next to the full menu between 1024 and 1279px. #}
@@ -80,7 +57,7 @@
           </span>
         </a>
 
-        <nav class="hidden items-center gap-4 whitespace-nowrap text-xs font-medium text-slate-300 lg:flex">
+        <nav class="hidden items-center gap-4 whitespace-nowrap text-xs font-medium text-slate-300 lg:flex" aria-label="{{ t('nav_main_label') }}">
           <a href="{{ url_for('shop.index') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_home') }}</a>
           <a href="{{ url_for('shop.products') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_products') }}</a>
           <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_contact') }}</a>
@@ -88,6 +65,7 @@
             <input
               type="text"
               name="q"
+              aria-label="{{ t('nav_search_label') }}"
               value="{{ request.args.get('q', '') }}"
               placeholder="{{ t('nav_search_placeholder') }}"
               class="w-40 rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1.5 pr-7 text-[11px] text-slate-100 placeholder:text-slate-500 focus:border-brandOrange focus:outline-none"
@@ -95,8 +73,8 @@
           </form>
           <div class="flex items-center gap-1 border-l border-r border-slate-700 px-2">
             <span class="text-slate-500 text-[10px]">{{ t('nav_lang_label') }}</span>
-            <a href="{{ url_for('shop.set_locale', locale='en') }}" class="px-1.5 py-0.5 rounded {{ locale == 'en' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">EN</a>
-            <a href="{{ url_for('shop.set_locale', locale='tr') }}" class="px-1.5 py-0.5 rounded {{ locale == 'tr' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">TR</a>
+            <a href="{{ localized_url('en', keep_query=True, switch=True) }}" hreflang="en" lang="en" class="px-1.5 py-0.5 rounded {{ locale == 'en' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">EN</a>
+            <a href="{{ localized_url('tr', keep_query=True, switch=True) }}" hreflang="tr" lang="tr" class="px-1.5 py-0.5 rounded {{ locale == 'tr' and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">TR</a>
           </div>
           <div class="flex items-center gap-1">
             <span class="text-slate-500 text-[10px]">{{ t('nav_currency_label') }}</span>
@@ -145,23 +123,24 @@
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-open:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
               <svg xmlns="http://www.w3.org/2000/svg" class="hidden h-5 w-5 group-open:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
             </summary>
-            <div class="absolute right-0 z-50 mt-2 w-64 space-y-3 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 shadow-2xl shadow-black/70">
+            <div class="pm-menu-panel absolute right-0 z-50 mt-2 w-64 space-y-3 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 shadow-2xl shadow-black/70">
               <form method="get" action="{{ url_for('shop.search') }}">
                 <input
                   type="text"
                   name="q"
+                  aria-label="{{ t('nav_search_label') }}"
                   value="{{ request.args.get('q', '') }}"
                   placeholder="{{ t('nav_search_placeholder') }}"
                   class="w-full rounded-full border border-slate-700 bg-slate-900/80 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brandOrange focus:outline-none"
                 >
               </form>
-              <nav class="flex flex-col gap-2 border-b border-slate-800 pb-3">
+              <nav class="flex flex-col gap-2 border-b border-slate-800 pb-3" aria-label="{{ t('nav_main_label') }}">
                 <a href="{{ url_for('shop.index') }}" class="hover:text-brandOrange">{{ t('nav_home') }}</a>
                 <a href="{{ url_for('shop.products') }}" class="hover:text-brandOrange">{{ t('nav_products') }}</a>
                 <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange">{{ t('nav_contact') }}</a>
                 <a href="{{ url_for('orders.cart') }}" class="hover:text-brandOrange">{{ t('nav_cart') }}{% if cart_count %} ({{ cart_count }}){% endif %}</a>
               </nav>
-              <nav class="flex flex-col gap-2 border-b border-slate-800 pb-3">
+              <nav class="flex flex-col gap-2 border-b border-slate-800 pb-3" aria-label="{{ t('nav_account_label') }}">
                 {% if current_user %}
                   <a href="{{ url_for('account.profile') }}" class="hover:text-brandOrange">{{ t('nav_account') }}</a>
                   <a href="{{ url_for('account.favorites') }}" class="hover:text-brandOrange">♥ {{ t('favorites_title') }}</a>
@@ -181,7 +160,7 @@
                 <span class="flex items-center gap-1">
                   <span class="text-slate-500">{{ t('nav_lang_label') }}</span>
                   {% for loc in SUPPORTED_LOCALES %}
-                    <a href="{{ url_for('shop.set_locale', locale=loc) }}" class="rounded px-1.5 py-0.5 {{ locale == loc and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">{{ loc|upper }}</a>
+                    <a href="{{ localized_url(loc, keep_query=True, switch=True) }}" hreflang="{{ loc }}" lang="{{ loc }}" class="rounded px-1.5 py-0.5 {{ locale == loc and 'bg-brandOrange/20 text-brandOrange' or 'hover:text-brandOrange' }}">{{ loc|upper }}</a>
                   {% endfor %}
                 </span>
                 <span class="flex items-center gap-1">
@@ -201,7 +180,7 @@
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
-            <div class="rounded-md border px-3 py-2 text-xs
+            <div role="{{ 'alert' if category == 'error' else 'status' }}" class="pm-fade-in rounded-md border px-3 py-2 text-xs
               {% if category == 'success' %}border-emerald-500/50 bg-emerald-500/10 text-emerald-200
               {% elif category == 'error' %}border-red-500/50 bg-red-500/10 text-red-200
               {% else %}border-slate-500/60 bg-slate-800/60 text-slate-100{% endif %}">
@@ -243,8 +222,8 @@
   <div id="pm-chat-root"></div>
 
   <!-- Page helpers and chat -->
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  <script src="{{ asset_url('js/app.js') }}"></script>
+  <script src="{{ asset_url('js/chat.js') }}"></script>
 </body>
 </html>
 

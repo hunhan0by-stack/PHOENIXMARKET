@@ -16,7 +16,7 @@
 {# heading: the card title's level, one below the page section it sits in #}
 {% macro product_card(product, heading='h3') %}
   {%- set detail_url = url_for('shop.product_detail', slug_or_id=product.slug) -%}
-<article class="relative flex flex-col rounded-2xl border border-slate-800 bg-slate-950/80 p-5 hover:border-brandOrange/80 hover:bg-slate-950 transition-colors">
+  <article class="relative flex flex-col rounded-2xl border border-slate-800 bg-slate-950/80 p-3 sm:p-5 transition duration-200 hover:border-brandOrange/80 hover:bg-slate-950 hover:shadow-lg hover:shadow-black/40 motion-safe:hover:-translate-y-0.5">
     {{ favorite_button(product, "absolute right-5 top-5 z-10 sm:right-7 sm:top-7") }}
     {{ product_image(product, "mb-3 h-24 w-full overflow-hidden sm:h-32 rounded-xl border border-slate-800 bg-slate-900", "flex h-full w-full items-center justify-center bg-slate-800/90 px-2 text-center text-[10px] font-medium uppercase tracking-wider text-slate-500") }}
     <{{ heading }} class="text-sm font-semibold text-slate-50"><a href="{{ detail_url }}" class="hover:text-brandOrange">{{ product.name }}</a></{{ heading }}>
@@ -37,8 +37,8 @@
       </span>
     </div>
     <div class="mt-auto flex flex-col gap-2 pt-3 sm:pt-4">
-      {{ cart_button(product, "w-full rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black") }}
-      <a href="{{ detail_url }}" class="w-full rounded-full border border-slate-700 px-4 py-2 text-[11px] text-slate-200 hover:border-brandOrange hover:text-brandOrange text-center">
+      {{ cart_button(product, "w-full rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black transition hover:brightness-110 active:scale-[.98]") }}
+      <a href="{{ detail_url }}" class="w-full rounded-full border border-slate-700 px-4 py-2 text-[11px] text-slate-200 transition-colors hover:border-brandOrange hover:text-brandOrange text-center">
         {{ t('view_details') }}
       </a>
     </div>
@@ -49,7 +49,7 @@
   {%- set img_url = product_image_url(product) -%}
   <div class="{{ box_class }}">
     {% if img_url %}
-      <img src="{{ img_url }}" alt="{{ product.name }}" class="h-full w-full object-cover" loading="lazy">
+      <img src="{{ img_url }}" alt="{{ product.name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
     {% else %}
       <div class="{{ placeholder_class }}">{{ t('listing_no_image') }}</div>
     {% endif %}
