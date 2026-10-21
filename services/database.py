@@ -271,6 +271,15 @@ def init_schema():
     # NULL = no deadline: orders placed before the feature, or re-opened by
     # the admin, are never cancelled automatically.
     _ensure_column(db, "orders", "payment_due_at", "payment_due_at TEXT")
+    # Set when the admin confirms the payment arrived (NULL = not confirmed;
+    # orders from before this column never had it recorded).
+    _ensure_column(db, "orders", "paid_at", "paid_at TEXT")
+    # The marketplace's own reference for that payment (e.g. itemsatis order no.)
+    _ensure_column(db, "orders", "payment_ref", "payment_ref TEXT")
+    # Optional itemsatis listing for a listing / package; the site-wide link
+    # from Admin → Settings is used when empty.
+    _ensure_column(db, "products", "payment_url", "payment_url TEXT")
+    _ensure_column(db, "product_variants", "payment_url", "payment_url TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_orders_payment_due "

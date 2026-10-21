@@ -81,6 +81,11 @@
           </select>
         </div>
       </div>
+      <div>
+        <label for="payment_url" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_payment_url') }}</label>
+        <input id="payment_url" type="url" name="payment_url" maxlength="500" value="{{ product.payment_url or '' if product else '' }}" placeholder="https://www.itemsatis.com/…" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+        <p class="mt-1 text-[11px] text-slate-500">{{ t('adm_payment_url_hint') }}</p>
+      </div>
 
       {% if product and product.has_variants %}
         <p class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
@@ -135,6 +140,8 @@
                     <input type="checkbox" name="active" value="1" {% if v.active %}checked{% endif %} class="h-4 w-4 accent-orange-500">
                     <span class="md:sr-only">{{ t('admin_status_active') }}</span></label>
                   <button type="submit" class="rounded-full border border-slate-700 px-3 py-1.5 text-[11px] text-slate-200 hover:border-brandOrange hover:text-brandOrange">{{ t('admin_package_save') }}</button>
+                  <label class="col-span-2 md:col-span-6"><span class="sr-only">{{ t('adm_payment_url') }}</span>
+                    <input type="url" name="payment_url" value="{{ v.payment_url or '' }}" maxlength="500" placeholder="{{ t('adm_package_payment_url_placeholder') }}" class="{{ field }}"></label>
                 </form>
                 <form method="post" action="{{ url_for('admin.delete_package', product_id=product.id, variant_id=v.id) }}" data-confirm="{{ t('admin_package_delete_confirm') }}">
                   {{ csrf_field() }}
@@ -159,6 +166,8 @@
             <input type="number" name="stock" min="0" value="0" required class="{{ field }}"></label>
           <label><span class="mb-1 block text-[11px] text-slate-400">{{ t('admin_package_order') }}</span>
             <input type="number" name="sort_order" value="{{ packages|length }}" class="{{ field }}"></label>
+          <label class="col-span-2 md:col-span-5 md:order-last"><span class="mb-1 block text-[11px] text-slate-400">{{ t('adm_payment_url') }}</span>
+            <input type="url" name="payment_url" maxlength="500" placeholder="{{ t('adm_package_payment_url_placeholder') }}" class="{{ field }}"></label>
           <div class="col-span-2 flex items-center gap-3 md:col-span-1">
             <input type="hidden" name="active" value="1">
             <button type="submit" class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-1.5 text-[11px] font-semibold text-black">{{ t('admin_package_add_button') }}</button>

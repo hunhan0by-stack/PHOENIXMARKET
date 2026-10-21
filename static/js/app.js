@@ -14,4 +14,19 @@
     },
     true
   );
+
+  // <button data-copy="text" data-copied="Copied"> copies text to the clipboard.
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest ? event.target.closest("[data-copy]") : null;
+    if (!button || !navigator.clipboard) {
+      return;
+    }
+    var original = button.textContent;
+    navigator.clipboard.writeText(button.getAttribute("data-copy")).then(function () {
+      button.textContent = button.getAttribute("data-copied") || original;
+      window.setTimeout(function () {
+        button.textContent = original;
+      }, 1500);
+    });
+  });
 })();

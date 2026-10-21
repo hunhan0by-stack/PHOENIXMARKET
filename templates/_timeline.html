@@ -19,6 +19,10 @@
           <p class="text-slate-200">{{ t('timeline_cancelled_by_customer') }}</p>
         {% elif e.event_type == 'expired' %}
           <p class="text-slate-200">{{ t('timeline_expired') }}</p>
+        {% elif e.event_type == 'payment_received' %}
+          <p class="text-emerald-300">{{ t('timeline_payment_received') }}{% if e.note %} <span class="text-slate-400">· {{ e.note }}</span>{% endif %}</p>
+        {% elif e.event_type == 'payment_undone' %}
+          <p class="text-slate-500">{{ t('timeline_payment_undone') }}</p>
         {% elif e.event_type == 'tracking_updated' %}
           <p class="text-slate-200">{{ t('timeline_tracking').format(number=e.note) }}</p>
         {% elif e.event_type == 'customer_note' %}

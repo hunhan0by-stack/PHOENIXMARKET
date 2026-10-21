@@ -7,8 +7,9 @@
 {% endfor %}{% if order.discount_usd %}{{ t('cart_discount').format(code=order.coupon_code) }}: -${{ "%.2f"|format(order.discount_usd) }}
 {% endif %}{{ t('order_total_label') }}: ${{ "%.2f"|format(order.total_price) }}
 
-{{ t('email_pay_cta') }}: {{ payment_url }}
-{% if order.payment_due_at %}{{ t('order_payment_due').format(when=customer_time(order.payment_due_at, locale)) }}
+{{ t('order_pay_with_number_before') }} #{{ order.id }} {{ t('order_pay_with_number_after') }}
+{% for link in payment_links %}{{ t('email_pay_cta') }}{% if payment_links|length > 1 %} ({{ link.names|join(', ') }}){% endif %}: {{ link.url }}
+{% endfor %}{% if order.payment_due_at %}{{ t('order_payment_due').format(when=customer_time(order.payment_due_at, locale)) }}
 {% endif %}{{ t('track_order_cta') }}: {{ track_url }}
 
 {{ t('email_track_hint') }}

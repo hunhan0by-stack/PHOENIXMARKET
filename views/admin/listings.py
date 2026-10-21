@@ -64,6 +64,23 @@ def listings():
     )
 
 
+PAYMENT_URL_MAX = 500
+
+
+def clean_payment_url(raw):
+    """(url or None, error_key or None) for an optional itemsatis link field."""
+    url = (raw or "").strip()
+    if not url:
+        return None, None
+    parsed = urlparse(url)
+    if (
+        parsed.scheme not in ("http", "https") or not parsed.netloc
+        or len(url) > PAYMENT_URL_MAX or any(ch.isspace() for ch in url)
+    ):
+        return None, "flash_payment_url_invalid"
+    return url, None
+
+
 def parse_listing_form(existing=None):
     """
     Read the admin listing form. Returns (data, error_key); data always holds
@@ -95,9 +112,14 @@ def parse_listing_form(existing=None):
         or (existing["category"] if existing else "General"),
         "stock": stock,
         "status": status,
+        "payment_url": (f.get("payment_url") or "").strip(),
     }
     if not data["name"] or not data["description"] or not data["base_price"]:
         return data, "flash_listing_required"
+    data["payment_url"], problem = clean_payment_url(data["payment_url"])
+    if problem:
+        data["payment_url"] = (f.get("payment_url") or "").strip()  # keep the input for correction
+        return data, problem
     try:
         price = float(data["base_price"])
     except ValueError:
@@ -239,12 +261,16 @@ def parse_package_form(product_id: int, variant_id: int | None = None):
         for v in store.list_variants(product_id)
     ):
         return None, "flash_package_name_taken"
+    payment_url, problem = clean_payment_url(f.get("payment_url"))
+    if problem:
+        return None, problem
     return {
         "name": name,
         "price": round(price, 2),
         "stock": stock,
         "sort_order": sort_order,
         "active": bool(f.get("active")),
+        "payment_url": payment_url,
     }, None
 
 

@@ -33,6 +33,7 @@ from services.cart import (
 import services.coupons as coupons
 from services.currency import convert, format_price
 import services.notifications as notifications
+import services.payments as payments
 from services.ratelimit import RateLimiter
 import services.store as store
 import services.unpaid_orders as unpaid_orders
@@ -311,7 +312,7 @@ def confirmation(token):
     return render_template(
         "order_confirmation.html",
         order=order,
-        itemsatis_url=current_app.config["ITEMSATIS_REDIRECT_URL"],
+        payment_links=payments.payment_links(order),
     )
 
 
@@ -323,7 +324,13 @@ def track(token):
         flash(tr_msg("flash_order_link_not_found"), "error")
         return redirect(url_for("shop.index"))
     events = store.list_order_events(order["id"], customer_view=True)
-    return render_template("track_order.html", order=order, events=events)
+    awaiting_payment = order["fulfillment_status"] == "pending" and not order["paid_at"]
+    return render_template(
+        "track_order.html",
+        order=order,
+        events=events,
+        payment_links=payments.payment_links(order) if awaiting_payment else [],
+    )
 
 
 @bp.route("/track/<token>/cancel", methods=["POST"])

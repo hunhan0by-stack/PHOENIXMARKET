@@ -21,9 +21,12 @@
       <td style="padding:10px 0 0;font-weight:bold;color:#f97316;text-align:right;">${{ "%.2f"|format(order.total_price) }}</td>
     </tr>
   </table>
-  <p style="margin:20px 0 8px;">
-    <a href="{{ payment_url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('email_pay_cta') }}</a>
-  </p>
+  <p style="margin:20px 0 8px;color:#cbd5e1;">{{ t('order_pay_with_number_before') }} <strong style="color:#f97316;">#{{ order.id }}</strong> {{ t('order_pay_with_number_after') }}</p>
+  {% for link in payment_links %}
+    <p style="margin:8px 0;">
+      <a href="{{ link.url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('email_pay_cta') }}{% if payment_links|length > 1 %}: {{ link.names|join(', ') }}{% endif %}</a>
+    </p>
+  {% endfor %}
   {% if order.payment_due_at %}
     <p style="margin:8px 0 0;font-size:13px;color:#fcd34d;">{{ t('order_payment_due').format(when=customer_time(order.payment_due_at, locale)) }}</p>
   {% endif %}

@@ -261,8 +261,9 @@ def _order_filters(status: str | None, q: str | None):
             "(lower(user_email) LIKE ? ESCAPE '\\' OR lower(full_name) LIKE ? ESCAPE '\\'"
             " OR lower(tracking_token) LIKE ? ESCAPE '\\'"
             " OR lower(COALESCE(tracking_number, '')) LIKE ? ESCAPE '\\'"
+            " OR lower(COALESCE(payment_ref, '')) LIKE ? ESCAPE '\\'"
         )
-        params += [pattern] * 4
+        params += [pattern] * 5
         if q.lstrip("#").isdigit():
             clause += " OR id = ?"
             params.append(int(q.lstrip("#")))
@@ -542,7 +543,7 @@ def list_overdue_unpaid_orders(now: datetime, limit: int = 50) -> list:
     rows = db.execute(
         """
         SELECT * FROM orders
-        WHERE fulfillment_status = 'pending'
+        WHERE fulfillment_status = 'pending' AND paid_at IS NULL
           AND payment_due_at IS NOT NULL AND payment_due_at <= ?
         ORDER BY payment_due_at ASC, id ASC
         LIMIT ?

@@ -66,7 +66,10 @@
             <td class="px-3 py-2 text-slate-400">{{ o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else '—' }}</td>
             <td class="px-3 py-2">{{ o.full_name }}{% if o.user_id %} <span class="ml-1 rounded bg-slate-800 px-1 text-[9px] text-slate-400" title="{{ t('adm_placed_signed_in') }}">{{ t('adm_account_badge') }}</span>{% endif %}</td>
             <td class="px-3 py-2 text-slate-400">{{ o.user_email }}</td>
-            <td class="px-3 py-2 text-brandOrange">{{ t('status_' ~ o.fulfillment_status) }}</td>
+            <td class="px-3 py-2 text-brandOrange">
+              {{ t('status_' ~ o.fulfillment_status) }}
+              {% if o.paid_at %}<span class="ml-1 rounded bg-emerald-500/15 px-1 text-[9px] text-emerald-300">✓ {{ t('adm_paid_badge') }}</span>{% endif %}
+            </td>
             <td class="px-3 py-2 text-right">${{ "%.2f"|format(o.total_price) }}</td>
             <td class="px-3 py-2 text-right">
               <a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="text-brandOrange hover:text-amber-200">{{ t('adm_manage') }}</a>

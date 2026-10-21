@@ -1,7 +1,9 @@
 {{ t('email_update_subject').format(id=order.id) }}
 
 {{ t('email_update_intro') }}
-{% if 'expired' in changes %}
+{% if 'payment_received' in changes %}
+{{ t('email_payment_received') }}
+{% endif %}{% if 'expired' in changes %}
 {{ t('email_order_expired') }}
 {% elif 'status_changed' in changes %}
 {{ t('timeline_status').format(status=t('status_' ~ order.fulfillment_status)) }}

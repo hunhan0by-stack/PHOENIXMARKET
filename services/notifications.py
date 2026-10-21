@@ -4,9 +4,10 @@ from templates/emails/ in the customer's language, and notifications for the
 shop owner (new order, new support message) in the language chosen under
 Admin → Settings. All are sent via services.mailer.
 """
-from flask import current_app, render_template, url_for
+from flask import render_template, url_for
 
 from services.mailer import send_email
+import services.payments as payments
 import services.store as store
 from services.translations import t as translate
 from services.web import EMAIL_RE, SUPPORTED_LOCALES
@@ -31,7 +32,7 @@ def send_order_confirmation(order: dict) -> int:
         locale,
         order=order,
         track_url=url_for("orders.track", token=order["tracking_token"], _external=True),
-        payment_url=current_app.config["ITEMSATIS_REDIRECT_URL"],
+        payment_links=payments.payment_links(order),
     )
     subject = translate("email_order_subject", locale).format(id=order["id"])
     return send_email(order["user_email"], subject, text, html, kind="order_confirmation")

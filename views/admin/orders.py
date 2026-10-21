@@ -56,6 +56,7 @@ def orders_csv():
     writer.writerow([
         "id", "created_at", "status", "full_name", "email", "total_usd",
         "discount_usd", "coupon", "items", "tracking_number", "customer_account", "notes",
+        "paid_at", "payment_ref",
     ])
     for o in rows:
         items = "; ".join(f"{li['display_name']} x{li['quantity']}" for li in o["line_items"])
@@ -72,6 +73,8 @@ def orders_csv():
             csv_safe(o["tracking_number"]),
             "yes" if o["user_id"] else "no",
             csv_safe(o["notes"]),
+            o["paid_at"].strftime("%Y-%m-%d %H:%M") if o["paid_at"] else "",
+            csv_safe(o["payment_ref"]),
         ])
     return Response(
         "﻿" + buf.getvalue(),  # BOM so Excel detects UTF-8
@@ -125,6 +128,37 @@ def order_detail(order_id):
         events=store.list_order_events(order_id),
         status_options=ORDER_STATUS_CHOICES,
     )
+
+
+@bp.route("/admin/orders/<int:order_id>/payment", methods=["POST"])
+def confirm_payment(order_id):
+    """The payment arrived (e.g. on itemsatis): record it; a pending order moves to processing."""
+    if not store.get_order_by_id(order_id, include_items=False):
+        flash(tr_msg("flash_order_not_found"), "error")
+        return redirect(url_for("admin.orders"))
+    try:
+        changes = store.record_payment(order_id, request.form.get("payment_ref"))
+    except store.PaymentNotAllowedError:
+        flash(tr_msg("flash_payment_order_cancelled"), "error")
+        return redirect(url_for("admin.order_detail", order_id=order_id))
+    except store.OrderChangedError:
+        flash(tr_msg("flash_order_changed_meanwhile"), "error")
+        return redirect(url_for("admin.order_detail", order_id=order_id))
+    flash(tr_msg("flash_payment_recorded"), "success")
+    if changes and request.form.get("notify_customer"):
+        try:
+            notifications.send_order_update(store.get_order_by_id(order_id), changes)
+            flash(tr_msg("flash_customer_notified"), "info")
+        except Exception:  # noqa: BLE001 - the payment is already recorded
+            current_app.logger.exception("Payment email failed for order %s", order_id)
+    return redirect(url_for("admin.order_detail", order_id=order_id))
+
+
+@bp.route("/admin/orders/<int:order_id>/payment/undo", methods=["POST"])
+def undo_payment(order_id):
+    if store.undo_payment(order_id):
+        flash(tr_msg("flash_payment_undone"), "success")
+    return redirect(url_for("admin.order_detail", order_id=order_id))
 
 
 @bp.route("/admin/orders/<int:order_id>/notes", methods=["POST"])

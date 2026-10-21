@@ -1,4 +1,6 @@
 """Every page renders in both languages; canonical URLs and the mobile menu."""
+import re
+
 import pytest
 
 from app import app
@@ -71,12 +73,41 @@ def test_unexpected_error_shows_friendly_page_without_details(make_client, monke
     body = r.get_data(as_text=True)
     assert r.status_code == 500 and "Bir sorun oluştu" in body
     assert "secret internal detail" not in body and "Traceback" not in body
+    # The page shows the request id as an error code (same id as the log line)
+    code = r.headers["X-Request-ID"]
+    assert re.fullmatch(r"[0-9A-F]{8}", code)
+    assert "Hata kodu" in body and f">{code}</span>" in body
+
+
+def test_logged_exception_carries_the_shown_error_code(client, monkeypatch, caplog):
+    import services.store as store
+
+    def broken(*_a, **_kw):
+        raise RuntimeError("boom")
+
+    monkeypatch.setitem(app.config, "PROPAGATE_EXCEPTIONS", False)
+    monkeypatch.setattr(store, "list_public_products", broken)
+    r = client.get("/products")
+    logged = [rec for rec in caplog.records if rec.exc_info]
+    assert logged and logged[-1].request_id == r.headers["X-Request-ID"]
+
+
+def test_api_errors_return_the_code_as_json(client, monkeypatch):
+    import views.api as api
+
+    def broken():
+        raise RuntimeError("boom")
+
+    monkeypatch.setitem(app.config, "PROPAGATE_EXCEPTIONS", False)
+    monkeypatch.setattr(api, "chat_api_key", broken)
+    r = client.post_json("/api/chat", {"message": "hello"})
+    assert r.status_code == 500
+    assert r.get_json()["code"] == r.headers["X-Request-ID"]
+    assert "boom" not in r.get_data(as_text=True)
 
 
 def test_admin_pages_are_fully_translated(make_client):
     """Every admin label has a Turkish text (a missing key would show up as its name)."""
-    import re
-
     import services.store as store
     from tests.helpers import in_app
 

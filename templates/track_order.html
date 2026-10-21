@@ -59,6 +59,21 @@
       </div>
     </div>
 
+    {% if payment_links %}
+    <div class="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-sm">
+      <p class="text-xs text-slate-300">
+        {{ t('order_pay_with_number_before') }} <span class="font-mono font-semibold text-brandOrange">#{{ order.id }}</span> {{ t('order_pay_with_number_after') }}
+      </p>
+      <div class="mt-3 flex flex-wrap gap-2">
+        {% for link in payment_links %}
+          <a href="{{ link.url }}" rel="noopener" class="inline-flex items-center rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-5 py-2 text-xs font-semibold text-black hover:opacity-95">
+            {{ t('email_pay_cta') }}{% if payment_links|length > 1 %}: {{ link.names|join(', ') }}{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     <div class="mt-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
       <h2 class="mb-4 text-sm font-semibold text-slate-100">{{ t('timeline_title') }}</h2>
       {{ order_timeline(order, events, customer=True) }}
