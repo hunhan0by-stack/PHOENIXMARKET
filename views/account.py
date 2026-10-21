@@ -102,8 +102,12 @@ def signup():
     return render_template("signup.html", email="")
 
 
-@bp.route("/signout")
+@bp.route("/signout", methods=["GET", "POST"])
 def signout():
+    # Signing out changes state, so only a CSRF-checked POST does it; a GET
+    # (old bookmark, or a forged <img src="/signout">) just goes home.
+    if request.method != "POST":
+        return redirect(url_for("shop.index"))
     logout_customer()
     session.pop("admin", None)
     session.pop("is_admin", None)

@@ -55,6 +55,15 @@ def test_bots_and_scripts_are_not_counted(make_client, ua):
     assert visits() == []
 
 
+def test_admin_pages_and_the_admin_are_not_counted(admin, make_client):
+    browser = make_client()
+    for path in ("/admin/login", "/set-locale/tr", "/set-currency/EUR"):
+        browser.get(path, headers={"User-Agent": CHROME})
+    admin.get("/products", headers={"User-Agent": CHROME})  # the owner browsing the shop
+    browser.post("/cart/add/2", headers={"User-Agent": CHROME})  # not a page view
+    assert visits() == []
+
+
 def test_legacy_raw_ips_are_anonymised_once():
     insert_visit("2026-09-30T10:00:00+00:00", "198.51.100.4", CHROME)
     changed = in_app(store.anonymize_legacy_visits, visitor_id)

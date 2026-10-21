@@ -1,10 +1,13 @@
 import hashlib
+import logging
 import os
+import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from flask import Flask, flash, jsonify, render_template, request, session
+from flask import Flask, flash, g, has_request_context, jsonify, render_template, request, session, url_for
+from flask.logging import default_handler
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -192,6 +195,29 @@ def inject_globals():
     }
 
 
+# -----------------------------------------------------------------------------
+# Logging: every line carries the request id, which the error page shows the
+# customer ("error code"), so a report can be matched to the log (Render logs).
+# -----------------------------------------------------------------------------
+class _RequestIdFilter(logging.Filter):
+    def filter(self, record):
+        record.request_id = g.get("request_id", "-") if has_request_context() else "-"
+        return True
+
+
+default_handler.addFilter(_RequestIdFilter())
+default_handler.setFormatter(
+    logging.Formatter("%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s")
+)
+if not app.debug:
+    app.logger.setLevel(logging.INFO)
+
+
+@app.before_request
+def assign_request_id():
+    g.request_id = secrets.token_hex(4).upper()
+
+
 # Periodic maintenance rides on incoming requests (Render's health checks keep
 # it going without visitors): Render web services have no scheduler.
 HOUSEKEEPING_INTERVAL_SECONDS = 10 * 60
@@ -226,11 +252,17 @@ def backup_command():
 
 @app.before_request
 def record_visit():
-    """Record each page view for admin analytics (skip static, uploads, API, health, sitemap)."""
+    """Record storefront page views for admin analytics.
+
+    Skipped: assets, API, health/SEO files, the admin panel, language/currency
+    switch redirects and the admin's own browsing (none are customer visits).
+    """
     path = request.path
-    if path.startswith(("/static/", "/uploads/", "/api/")) or path in (
+    if path.startswith(("/static/", "/uploads/", "/api/", "/admin", "/set-locale/", "/set-currency/")) or path in (
         "/health", "/sitemap.xml", "/robots.txt", "/favicon.ico",
     ):
+        return
+    if request.method != "GET" or is_admin():
         return
     # The raw header: werkzeug's UserAgent object is falsy for real browsers
     ua = request.headers.get("User-Agent", "")
@@ -258,6 +290,8 @@ def csrf_protect():
 
 @app.after_request
 def security_headers(response):
+    if g.get("request_id"):
+        response.headers.setdefault("X-Request-ID", g.request_id)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -288,14 +322,19 @@ _FALLBACK_ERROR_PAGE = (
 
 @app.errorhandler(500)
 def server_error(error):  # noqa: ARG001
-    """Unexpected errors: a friendly page, never a traceback (Flask logs the exception)."""
+    """Unexpected errors: a friendly page, never a traceback (Flask logs the exception).
+
+    The page shows the request id as an error code; the logged exception
+    carries the same id, so a customer's report leads straight to it.
+    """
+    code = g.get("request_id", "")
     if request.path.startswith("/api/"):
-        return jsonify({"error": tr_msg("error_heading")}), 500
+        return jsonify({"error": tr_msg("error_heading"), "code": code}), 500
     try:
-        return render_template("500.html"), 500
+        return render_template("500.html", error_code=code), 500
     except Exception:  # noqa: BLE001 - e.g. the database itself is unavailable
         app.logger.exception("Rendering the error page failed")
-        return _FALLBACK_ERROR_PAGE, 500
+        return _FALLBACK_ERROR_PAGE + f"<p>Error code: {code}</p>", 500
 
 
 @app.errorhandler(413)

@@ -74,3 +74,32 @@ def test_admin_pages_require_login(client):
         assert r.status_code == 302 and r.headers["Location"].endswith("/admin/login")
     r = client.post("/admin/create-category", {"name": "Hacked"})
     assert r.headers["Location"].endswith("/admin/login")
+
+
+def test_sign_out_needs_a_csrf_checked_post(client):
+    """A GET (old bookmark, forged <img src>) or a cross-site POST cannot sign anyone out."""
+    client.signup()
+    assert client.get("/signout").status_code == 302
+    assert client.user_id()
+    client.post("/signout", csrf=False)
+    assert client.user_id()
+    client.post("/signout")
+    assert not client.user_id()
+
+
+def test_admin_logout_needs_a_csrf_checked_post(admin):
+    r = admin.get("/admin/logout")
+    assert r.headers["Location"].endswith("/admin/dashboard")
+    assert admin.session().get("is_admin")
+    admin.post("/admin/logout", csrf=False)
+    assert admin.session().get("is_admin")
+    admin.post("/admin/logout")
+    assert not admin.session().get("is_admin")
+
+
+def test_sign_out_controls_are_forms(client, admin):
+    client.signup()
+    for html in (client.html("/"), client.html("/account"), admin.html("/admin/dashboard")):
+        assert 'href="/signout"' not in html and 'href="/admin/logout"' not in html
+    assert 'action="/signout"' in client.html("/account")
+    assert 'action="/admin/logout"' in admin.html("/admin/dashboard")

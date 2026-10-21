@@ -41,8 +41,11 @@ def login():
     return render_template("admin_login.html")
 
 
-@bp.route("/admin/logout")
+@bp.route("/admin/logout", methods=["GET", "POST"])
 def logout():
+    # As with customer sign-out: only a CSRF-checked POST signs out
+    if request.method != "POST":
+        return redirect(url_for("admin.dashboard") if is_admin() else url_for("shop.index"))
     session.pop("is_admin", None)
     session.pop("admin", None)
     u = session.get("user") or {}

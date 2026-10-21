@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_post_link.html" import post_link with context %}
 {% block title %}{{ t('account_title') }} – PHOENIXMARKET{% endblock %}
 {% block content %}
 <section class="bg-slate-950/90">
@@ -67,9 +68,7 @@
     </div>
 
     <div class="mt-8">
-      <a href="{{ url_for('account.signout') }}" class="inline-flex rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 hover:border-brandOrange hover:text-brandOrange">
-        {{ t('nav_logout') }}
-      </a>
+      {{ post_link(url_for('account.signout'), t('nav_logout'), 'inline-flex rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-200 hover:border-brandOrange hover:text-brandOrange') }}
     </div>
   </div>
 </section>

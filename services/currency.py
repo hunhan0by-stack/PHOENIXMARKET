@@ -17,8 +17,16 @@ _FALLBACK_TRY = float(os.getenv("TRY_PER_USD", "34.50"))
 _FALLBACK_EUR = float(os.getenv("EUR_PER_USD", "0.92"))
 
 _CACHE_TTL = int(os.getenv("EXCHANGE_RATE_CACHE_SECONDS", "3600"))
+# After a failed fetch, wait this long before trying again (never per request)
+_RETRY_AFTER_FAILURE = 300
 _CACHE_LOCK = threading.Lock()
-_rates_cache: dict[str, Any] = {"rates": None, "fetched_at": 0.0, "source": "fallback"}
+_rates_cache: dict[str, Any] = {
+    "rates": None,
+    "fetched_at": 0.0,
+    "source": "fallback",
+    "next_attempt": 0.0,  # monotonic time of the next fetch
+    "refreshing": False,  # a background refresh is running
+}
 
 # Primary: public JSON (no API key). Override with EXCHANGE_RATE_API_URL if needed.
 _DEFAULT_API = (
@@ -36,7 +44,7 @@ def _fetch_live_rates() -> tuple[dict | None, str]:
     Expects JSON with nested 'usd' object containing 'try' and 'eur' (lowercase keys).
     """
     url = (os.getenv("EXCHANGE_RATE_API_URL") or _DEFAULT_API).strip()
-    timeout = float(os.getenv("EXCHANGE_RATE_REQUEST_TIMEOUT", "8"))
+    timeout = float(os.getenv("EXCHANGE_RATE_REQUEST_TIMEOUT", "3"))
     try:
         resp = requests.get(url, timeout=timeout)
         resp.raise_for_status()
@@ -60,30 +68,40 @@ def _fetch_live_rates() -> tuple[dict | None, str]:
     return {"TRY": try_rate, "EUR": eur_rate, "USD": 1.0}, "live"
 
 
+def _refresh() -> None:
+    """Fetch live rates into the cache; on failure keep what we have and back off."""
+    try:
+        live, _src = _fetch_live_rates()
+    except Exception:  # noqa: BLE001 - a refresh must never take the cache down
+        live = None
+    with _CACHE_LOCK:
+        now = time.monotonic()
+        if live is not None:
+            _rates_cache.update(rates=live, fetched_at=now, source="live", next_attempt=now + _CACHE_TTL)
+        else:
+            _rates_cache["next_attempt"] = now + _RETRY_AFTER_FAILURE
+            if _rates_cache["rates"] is None:
+                _rates_cache.update(rates=_static_rates(), fetched_at=now, source="fallback")
+        _rates_cache["refreshing"] = False
+
+
 def get_rates() -> dict:
-    """Return conversion rates: USD -> {TRY, EUR}; cached with TTL."""
-    now = time.monotonic()
+    """Return conversion rates: USD -> {TRY, EUR}.
+
+    Stale-while-revalidate: once rates are cached a visitor never waits for
+    the rate service; an expired cache is served while a background thread
+    refreshes it. Only the very first call after start-up fetches inline.
+    """
     with _CACHE_LOCK:
         cached = _rates_cache["rates"]
-        age = now - _rates_cache["fetched_at"]
-        if cached is not None and age < _CACHE_TTL:
+        if cached is not None:
+            if time.monotonic() >= _rates_cache["next_attempt"] and not _rates_cache["refreshing"]:
+                _rates_cache["refreshing"] = True
+                threading.Thread(target=_refresh, daemon=True).start()
             return dict(cached)
-
-    live, _src = _fetch_live_rates()
+    _refresh()
     with _CACHE_LOCK:
-        if live is not None:
-            _rates_cache["rates"] = live
-            _rates_cache["fetched_at"] = time.monotonic()
-            _rates_cache["source"] = "live"
-            return dict(live)
-        # Keep serving stale cache briefly if live failed but we had data
-        if _rates_cache.get("rates"):
-            return dict(_rates_cache["rates"])
-        static = _static_rates()
-        _rates_cache["rates"] = static
-        _rates_cache["fetched_at"] = time.monotonic()
-        _rates_cache["source"] = "fallback"
-        return dict(static)
+        return dict(_rates_cache["rates"])
 
 
 def convert(amount: float, from_currency: str, to_currency: str) -> float:

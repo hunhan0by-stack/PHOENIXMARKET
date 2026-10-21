@@ -1,3 +1,4 @@
+{% from "_post_link.html" import post_link with context %}
 <!DOCTYPE html>
 <html lang="{{ locale or 'en' }}">
 <head>
@@ -99,9 +100,7 @@
             <a href="{{ url_for('account.profile') }}" class="hover:text-brandOrange transition-colors">
               {{ t('nav_account') }}
             </a>
-            <a href="{{ url_for('account.signout') }}" class="text-slate-400 hover:text-brandOrange transition-colors">
-              {{ t('nav_logout') }}
-            </a>
+            {{ post_link(url_for('account.signout'), t('nav_logout'), 'text-slate-400 hover:text-brandOrange transition-colors') }}
           {% else %}
             <a href="{{ url_for('account.signin') }}" class="hover:text-brandOrange transition-colors">{{ t('nav_sign_in') }}</a>
             <a href="{{ url_for('account.signup') }}" class="rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2 text-[11px] font-semibold text-black">
@@ -144,14 +143,14 @@
                 {% if current_user %}
                   <a href="{{ url_for('account.profile') }}" class="hover:text-brandOrange">{{ t('nav_account') }}</a>
                   <a href="{{ url_for('account.favorites') }}" class="hover:text-brandOrange">♥ {{ t('favorites_title') }}</a>
-                  <a href="{{ url_for('account.signout') }}" class="text-slate-400 hover:text-brandOrange">{{ t('nav_logout') }}</a>
+                  {{ post_link(url_for('account.signout'), t('nav_logout'), 'text-slate-400 hover:text-brandOrange') }}
                 {% else %}
                   <a href="{{ url_for('account.signin') }}" class="hover:text-brandOrange">{{ t('nav_sign_in') }}</a>
                   <a href="{{ url_for('account.signup') }}" class="hover:text-brandOrange">{{ t('nav_sign_up') }}</a>
                 {% endif %}
                 {% if is_admin %}
                   <a href="{{ url_for('admin.dashboard') }}" class="hover:text-brandOrange">{{ t('nav_admin_panel') }}</a>
-                  <a href="{{ url_for('admin.logout') }}" class="text-slate-400 hover:text-brandOrange">{{ t('nav_admin_logout') }}</a>
+                  {{ post_link(url_for('admin.logout'), t('nav_admin_logout'), 'text-slate-400 hover:text-brandOrange') }}
                 {% else %}
                   <a href="{{ url_for('admin.login') }}" class="text-slate-400 hover:text-brandOrange">{{ t('nav_admin_login') }}</a>
                 {% endif %}
@@ -209,7 +208,7 @@
           <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange">{{ site_content.footer_contact_text }}</a>
           <span>{{ site_content.footer_discord_text }}</span>
           {% if is_admin %}
-            <a href="{{ url_for('admin.logout') }}" class="hover:text-brandOrange">{{ t('nav_admin_logout') }}</a>
+            {{ post_link(url_for('admin.logout'), t('nav_admin_logout'), 'hover:text-brandOrange') }}
           {% else %}
             <a href="{{ url_for('admin.login') }}" class="hover:text-brandOrange">{{ t('nav_admin_login') }}</a>
           {% endif %}

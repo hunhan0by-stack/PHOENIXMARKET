@@ -1,0 +1,8 @@
+{# A link-looking button that POSTs with a CSRF token, for actions that change
+   state (sign out). Import with: {% from "_post_link.html" import post_link with context %} #}
+{% macro post_link(action, label, classes='') %}
+  <form method="post" action="{{ action }}" class="inline">
+    {{ csrf_field() }}
+    <button type="submit" class="{{ classes }}">{{ label }}</button>
+  </form>
+{% endmacro %}
