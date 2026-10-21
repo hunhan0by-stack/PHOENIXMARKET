@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ t('legal_' ~ page ~ '_title') }} – PHOENIXMARKET{% endblock %}
+{% block meta_description %}{{ t('legal_' ~ page ~ '_title') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+{# Seller details come from Admin → Settings; a visible marker shows what is still missing. #}
+{% set missing = '[' ~ t('legal_missing') ~ ']' %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
+    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">{{ t('legal_eyebrow') }}</p>
+    <h1 class="mt-2 text-2xl font-semibold tracking-tight text-slate-50 sm:text-3xl">{{ t('legal_' ~ page ~ '_title') }}</h1>
+    <p class="mt-2 text-xs text-slate-500">{{ t('legal_version').format(version=legal_version) }}</p>
+
+    <nav class="mt-6 flex flex-wrap gap-2 text-xs" aria-label="{{ t('legal_eyebrow') }}">
+      {% for other in ('privacy', 'distance-sales', 'returns', 'cookies') %}
+        <a href="{{ url_for('shop.legal_page', page=other) }}"
+           class="rounded-full border px-3 py-1 {{ 'border-brandOrange text-brandOrange' if other == page else 'border-slate-700 text-slate-300 hover:border-brandOrange hover:text-brandOrange' }}"
+           {% if other == page %}aria-current="page"{% endif %}>{{ t('legal_' ~ other ~ '_title') }}</a>
+      {% endfor %}
+    </nav>
+
+    <article class="legal-text mt-8">
+      {% include "legal/" ~ page ~ "_" ~ ('tr' if locale == 'tr' else 'en') ~ ".html" %}
+    </article>
+  </div>
+</section>
+{% endblock %}

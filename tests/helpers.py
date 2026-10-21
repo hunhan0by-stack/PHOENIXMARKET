@@ -82,6 +82,9 @@ class Client:
         data = dict(data or {})
         if csrf:
             data.setdefault("csrf_token", CSRF_TOKEN)
+        if path == "/checkout":
+            # Like ticking the consent box; pass accept_terms="" to leave it unticked
+            data.setdefault("accept_terms", "1")
         return self.c.post(path, data=data, **self._kw(kw))
 
     def post_json(self, path, payload, header_token=CSRF_TOKEN, **kw):

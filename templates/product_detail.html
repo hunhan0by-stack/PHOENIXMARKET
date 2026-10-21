@@ -100,8 +100,15 @@
               </div>
             </form>
           {% endif %}
+          <ul class="mt-5 space-y-1.5 border-t border-slate-800 pt-4 text-[11px] text-slate-400">
+            {% if product.delivery_hours %}
+              <li><span aria-hidden="true">⏱</span> <span class="text-slate-200">{{ delivery_label(product.delivery_hours, locale) }}</span> · {{ t('delivery_after_payment') }}</li>
+            {% endif %}
+            <li><span aria-hidden="true">↩</span> <a href="{{ url_for('shop.legal_page', page='returns') }}" class="hover:text-brandOrange">{{ t('trust_returns') }}</a></li>
+            <li><span aria-hidden="true">✉</span> <a href="{{ url_for('shop.contact') }}" class="hover:text-brandOrange">{{ t('trust_support') }}</a></li>
+          </ul>
         </div>
-      </aside>
+      </div>
 
       <div class="space-y-5 lg:col-start-1">
         <p class="whitespace-pre-line text-sm leading-relaxed text-slate-300">{{ product.description }}</p>

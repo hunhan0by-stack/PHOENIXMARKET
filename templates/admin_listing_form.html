@@ -82,6 +82,11 @@
         </div>
       </div>
       <div>
+        <label for="delivery_hours" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_delivery_hours') }}</label>
+        <input id="delivery_hours" type="number" name="delivery_hours" min="1" max="720" value="{{ product.delivery_hours or '' if product else '' }}" placeholder="24" class="w-40 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+        <p class="mt-1 text-[11px] text-slate-500">{{ t('adm_delivery_hours_hint') }}</p>
+      </div>
+      <div>
         <label for="payment_url" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_payment_url') }}</label>
         <input id="payment_url" type="url" name="payment_url" maxlength="500" value="{{ product.payment_url or '' if product else '' }}" placeholder="https://www.itemsatis.com/…" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
         <p class="mt-1 text-[11px] text-slate-500">{{ t('adm_payment_url_hint') }}</p>

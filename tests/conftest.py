@@ -3,7 +3,9 @@ Shared test setup. The app reads its configuration from the environment when
 app.py is imported, so everything points at a throw-away directory first.
 Explicit values also win over a local .env (load_dotenv does not override).
 """
+import atexit
 import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -11,6 +13,7 @@ from pathlib import Path
 import pytest
 
 _TMP = tempfile.mkdtemp(prefix="phoenixmarket-tests-")
+atexit.register(shutil.rmtree, _TMP, ignore_errors=True)
 os.environ.update(
     {
         "DATABASE_PATH": os.path.join(_TMP, "test.db"),

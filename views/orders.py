@@ -31,6 +31,7 @@ from services.cart import (
     save_cart,
 )
 import services.coupons as coupons
+import services.legal as legal
 from services.currency import convert, format_price
 import services.notifications as notifications
 import services.payments as payments
@@ -243,6 +244,10 @@ def checkout():
             problem = "flash_invalid_email"
         elif any(len(form[k]) > n for k, n in CHECKOUT_MAX_LENGTHS.items()):
             problem = "flash_checkout_too_long"
+        elif not request.form.get("accept_terms"):
+            # Distance sales agreement + immediate performance (no withdrawal
+            # for services started at the customer's request): explicit consent
+            problem = "flash_checkout_terms_required"
         elif request.form.get("quote") not in (None, totals["quote"]):
             # A price, package or discount changed since the page was shown
             problem = "flash_checkout_prices_changed"
@@ -277,6 +282,7 @@ def checkout():
                 coupon=coupon,
                 discount_usd=discount_usd,
                 payment_window_hours=unpaid_orders.payment_window_hours(),
+                terms_version=legal.LEGAL_VERSION,
             )
         except store.OutOfStockError as exc:
             flash(tr_msg("flash_checkout_stock", name=exc.product_name), "error")

@@ -276,9 +276,15 @@ def init_schema():
     _ensure_column(db, "orders", "paid_at", "paid_at TEXT")
     # The marketplace's own reference for that payment (e.g. itemsatis order no.)
     _ensure_column(db, "orders", "payment_ref", "payment_ref TEXT")
+    # When the customer accepted the distance sales agreement / pre-information
+    # at checkout, and which version of the texts (services.legal.LEGAL_VERSION)
+    _ensure_column(db, "orders", "terms_accepted_at", "terms_accepted_at TEXT")
+    _ensure_column(db, "orders", "terms_version", "terms_version TEXT")
     # Optional itemsatis listing for a listing / package; the site-wide link
     # from Admin → Settings is used when empty.
     _ensure_column(db, "products", "payment_url", "payment_url TEXT")
+    # Promised delivery time in hours after the payment is confirmed (NULL = not stated)
+    _ensure_column(db, "products", "delivery_hours", "delivery_hours INTEGER")
     _ensure_column(db, "product_variants", "payment_url", "payment_url TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
     db.execute(

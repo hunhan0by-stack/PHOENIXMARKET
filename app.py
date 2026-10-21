@@ -34,6 +34,7 @@ from services.web import (
     csrf_token_valid,
     current_user,
     customer_time,
+    delivery_label,
     get_csrf_token,
     get_current_currency,
     get_current_locale,
@@ -144,6 +145,7 @@ register_blueprints(app)
 # A global (not a context processor) so order emails rendered outside the
 # customer's request can use it too
 app.jinja_env.globals["customer_time"] = customer_time
+app.jinja_env.globals["delivery_label"] = delivery_label
 
 # Cache-busting token for the compiled stylesheet (changes whenever it is rebuilt)
 _css_path = app_root / "static" / "css" / "app.css"
@@ -171,7 +173,7 @@ def inject_globals():
     )
     return {
         "cart_count": cart_count,
-        "site_content": store.load_site_content(),
+        "site_content": store.load_site_content(locale),
         "site_settings": site_settings,
         "locale": locale,
         "currency": currency,

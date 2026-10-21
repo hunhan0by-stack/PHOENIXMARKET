@@ -25,7 +25,16 @@ deployed on Render with gunicorn.
 - **Admin:** dashboard with 30-day sales, listings and packages, categories,
   orders (search, filters, CSV export, internal notes), coupons, review
   moderation, support inbox, email outbox, site content and settings.
+- **Payments:** customers pay on itemsatis (a listing or package can have its own
+  itemsatis link) and send their order number; the admin confirms the payment
+  ("Payment received"), which moves the order to processing.
+- **Legal:** privacy/KVKK notice, distance sales agreement, returns and cookie
+  pages (TR/EN templates filled with the seller details from Settings); the
+  customer's consent is required and recorded with each order.
+- **Privacy-friendly analytics:** no IP addresses or cookies; daily-rotating
+  anonymous visitor ids, bots excluded, page views kept 90 days.
 - **Email:** every message is stored in an outbox; sent via SMTP when configured.
+  The owner is notified of new orders and support messages.
 - **Languages / currencies:** English and Turkish UI; prices in TRY, USD or EUR.
 - **Security:** CSRF protection, rate limits, nonce-based CSP and security headers,
   safe image uploads, open-redirect protection.
@@ -51,6 +60,12 @@ Local admin login (only when no production environment is detected):
 ```bash
 python -m pytest
 ```
+
+Before a release run `.\scripts\check.ps1`: the test suite plus
+`scripts/rehearse_migration.py`, which applies the schema changes to a copy of
+`data/phoenixmarket.db` and smoke-tests the main pages (the original file is
+never opened). The step-by-step launch list (in Turkish) is
+[docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
 
 The suite runs against a throw-away database and upload folder (see
 `tests/conftest.py`); it never touches `data/`.
@@ -132,6 +147,8 @@ services/              business logic and data access (store.py holds all SQL)
 templates/             Jinja templates (emails in templates/emails/)
 static/                CSS/JS/images
 tests/                 pytest suite
+scripts/               check.ps1 (pre-release checks), rehearse_migration.py
+docs/                  RELEASE_CHECKLIST.md (launch steps, Turkish)
 data/                  local SQLite database (not for version control)
 ```
 

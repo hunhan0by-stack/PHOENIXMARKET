@@ -66,6 +66,17 @@ def customer_time(dt, locale):
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
+def delivery_label(hours, locale):
+    """"Delivered within 24 hours" / "3 gün içinde teslim"; whole days from 48 hours."""
+    if not hours:
+        return ""
+    if hours == 1:
+        return translate("delivery_within_one_hour", locale)
+    if hours >= 48 and hours % 24 == 0:
+        return translate("delivery_within_days", locale).format(n=hours // 24)
+    return translate("delivery_within_hours", locale).format(n=hours)
+
+
 def get_current_locale():
     """Get user's locale from session, default en."""
     loc = session.get(LOCALE_KEY) or "en"

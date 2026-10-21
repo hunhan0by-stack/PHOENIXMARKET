@@ -214,6 +214,11 @@
           {% endif %}
         </div>
       </div>
+      <nav class="mx-auto flex max-w-6xl flex-wrap gap-x-4 gap-y-1 px-4 pb-6 text-[11px] text-slate-500 sm:px-6 lg:px-8" aria-label="{{ t('footer_legal_nav') }}">
+        {% for page in ('privacy', 'distance-sales', 'returns', 'cookies') %}
+          <a href="{{ url_for('shop.legal_page', page=page) }}" class="hover:text-brandOrange">{{ t('legal_' ~ page ~ '_title') }}</a>
+        {% endfor %}
+      </nav>
     </footer>
   </div>
 

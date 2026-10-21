@@ -1,0 +1,66 @@
+{# Privacy notice (KVKK). A template, not legal advice: have it reviewed before going live. #}
+<p>
+  This notice explains, under Article 10 of the Turkish Personal Data Protection Law No. 6698
+  ("KVKK"), how the personal data of people who shop, create an account or contact us through
+  PHOENIXMARKET is processed.
+</p>
+
+<h2>1. Data controller</h2>
+<div class="legal-box">
+  <p><strong>{{ seller.name or missing }}</strong></p>
+  <p>{{ seller.address or missing }}</p>
+  <p>Tax / MERSIS no.: {{ seller.tax_id or missing }}</p>
+  <p>Email: {{ seller.email or missing }}{% if seller.phone %} · Phone: {{ seller.phone }}{% endif %}</p>
+</div>
+
+<h2>2. Data we process</h2>
+<ul>
+  <li><strong>Identity and contact:</strong> full name, email address.</li>
+  <li><strong>Order data:</strong> products and packages bought, amounts, discount code, order notes (e.g. a username you give us for delivery), order status and payment reference.</li>
+  <li><strong>Account data:</strong> if you create an account, your email address and an irreversible hash of your password (the password itself is never stored), your favourites and back-in-stock requests.</li>
+  <li><strong>Support messages:</strong> messages sent through the contact form and our replies.</li>
+  <li><strong>Technical data:</strong> one cookie required to keep your session. Your IP address is not stored; site statistics use an anonymous id that changes every day and are deleted after 90 days.</li>
+</ul>
+
+<h2>3. Purposes and legal grounds</h2>
+<ul>
+  <li>Taking and fulfilling orders, sending you notifications and giving support: conclusion and performance of a contract (KVKK Art. 5/2-c).</li>
+  <li>Keeping invoices, accounting and other statutory records: compliance with a legal obligation (Art. 5/2-ç).</li>
+  <li>Security of the site, preventing abuse and fraud, improving the service: legitimate interest (Art. 5/2-f).</li>
+  <li>Extra services you request, such as back-in-stock emails: performance of a contract at your request (Art. 5/2-c).</li>
+</ul>
+
+<h2>4. Transfers</h2>
+<ul>
+  <li><strong>Payment:</strong> payments are made on itemsatis. Information you give itemsatis while paying is covered by itemsatis's own privacy notice. We do not transfer data about you to itemsatis; you pass your order number to the seller so the payment can be matched.</li>
+  <li><strong>Hosting and email:</strong> the site runs with a hosting provider whose servers are abroad (USA), and order and notification emails are sent through an email service provider. These transfers are made in line with Art. 9 KVKK.</li>
+  {% if chat_api_enabled %}
+  <li><strong>AI support chat:</strong> messages you type into the chat are sent to OpenAI (USA) to generate an answer. Please do not type personal data into the chat.</li>
+  {% endif %}
+  <li>To public authorities legally entitled to request it, to the extent the law requires.</li>
+</ul>
+
+<h2>5. Retention</h2>
+<ul>
+  <li>Order and accounting records: for the statutory retention periods.</li>
+  <li>Account data: while your account is open. You can delete the account yourself on the Account page; data we are not legally required to keep is deleted at once, orders are kept without a link to the account.</li>
+  <li>Support messages: for a reasonable time after your request is resolved and as long as needed for possible disputes.</li>
+  <li>Site statistics: 90 days. Password reset links expire after a short time.</li>
+</ul>
+
+<h2>6. Your rights (KVKK Art. 11)</h2>
+<p>You can ask the data controller to:</p>
+<ul>
+  <li>tell you whether your personal data is processed and, if so, give you information about it,</li>
+  <li>tell you the purpose of processing and whether it is used accordingly,</li>
+  <li>name the third parties in Turkey or abroad it is transferred to,</li>
+  <li>correct incomplete or inaccurate data, delete or destroy it under the conditions of Art. 7 KVKK, and inform the third parties it was transferred to,</li>
+  <li>object to a result against you arising solely from automated analysis,</li>
+  <li>compensate damage caused by unlawful processing.</li>
+</ul>
+<p>
+  If you have an account, <strong>Account → Download my data</strong> gives you a copy of your data
+  right away. Send other requests to {{ seller.email or missing }} or through the
+  <a href="{{ url_for('shop.contact') }}">contact form</a>. Requests are answered free of charge
+  within 30 days at the latest.
+</p>

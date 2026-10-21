@@ -1,0 +1,32 @@
+{# Cancellation, refund and delivery terms. A template, not legal advice. #}
+<h2>Delivery</h2>
+<ul>
+  <li>All products and services are digital; nothing is shipped.</li>
+  <li>Performance starts once your payment on itemsatis has been received and confirmed.</li>
+  <li>You can follow your order through the private tracking link in the order confirmation and your email.</li>
+  <li>Performance is completed within 30 days of the order at the latest.</li>
+</ul>
+
+<h2>Cancellation</h2>
+<ul>
+  <li>Before paying, you can cancel your order free of charge with the "Cancel order" button on the tracking page.</li>
+  {% if payment_window_hours %}
+  <li>Orders not paid within {{ payment_window_hours|round|int }} hours are cancelled automatically and you are notified by email.</li>
+  {% endif %}
+  <li>After paying, contact us with your order number to cancel.</li>
+</ul>
+
+<h2>Refunds</h2>
+<ul>
+  <li>For orders that are paid but not yet started, the amount paid is refunded when you ask to cancel.</li>
+  <li>If an order cannot be performed, we tell you and refund the amount paid within 14 days of that notice at the latest.</li>
+  <li>If the service was performed incompletely or defectively, you can ask for it to be performed again, a price reduction or a refund.</li>
+  <li>As payments are taken on itemsatis, refunds are made through itemsatis's refund process.</li>
+  <li>For digital services that start right after the payment is confirmed, the right of withdrawal ends once performance has started (<a href="{{ url_for('shop.legal_page', page='distance-sales') }}">Distance sales agreement</a>, section 5).</li>
+</ul>
+
+<h2>Contact</h2>
+<p>
+  For cancellations, refunds and delivery, write to {{ seller.email or missing }} or use the
+  <a href="{{ url_for('shop.contact') }}">contact form</a>. Please quote your order number.
+</p>

@@ -6,6 +6,7 @@ import sqlite3
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
 
 import services.backup as backup
+import services.legal as legal
 import services.store as store
 from services.web import SUPPORTED_LOCALES, tr_msg
 from views.admin.base import bp
@@ -18,11 +19,22 @@ def content():
         for key in store.SITE_CONTENT_KEYS:
             if key in request.form:
                 updates[key] = request.form.get(key, "").strip()
-        if updates:
-            store.save_site_content(updates)
+        tr_updates = {
+            key: request.form.get(f"{key}__tr", "").strip()
+            for key in store.TRANSLATABLE_SITE_CONTENT_KEYS
+            if f"{key}__tr" in request.form
+        }
+        if updates or tr_updates:
+            store.save_site_content(updates, tr_updates)
         flash(tr_msg("flash_content_updated"), "success")
         return redirect(url_for("admin.content"))
-    return render_template("admin_content.html")
+    # Explicit languages: the page's own site_content follows the admin's UI language
+    return render_template(
+        "admin_content.html",
+        content_en=store.load_site_content("en"),
+        content_tr=store.load_site_content_tr_overrides(),
+        content_tr_defaults=store.DEFAULT_SITE_CONTENT_TR,
+    )
 
 
 @bp.route("/admin/settings", methods=["GET", "POST"])
@@ -58,7 +70,20 @@ def settings():
         backups=backup.list_backups(),
         last_download=backup.last_download_at(),
         backup_overdue=backup.download_overdue(),
+        seller=legal.seller_info(),
+        legal_reviewed=legal.texts_reviewed(),
     )
+
+
+@bp.route("/admin/settings/legal", methods=["POST"])
+def legal_settings():
+    """Seller details shown on the legal pages, and the 'texts reviewed' confirmation."""
+    legal.save_seller_info(
+        {field: request.form.get(f"seller_{field}", "") for field in legal.SELLER_FIELDS}
+    )
+    legal.set_texts_reviewed(bool(request.form.get("texts_reviewed")))
+    flash(tr_msg("flash_settings_updated"), "success")
+    return redirect(url_for("admin.settings") + "#legal")
 
 
 def send_backup(path):

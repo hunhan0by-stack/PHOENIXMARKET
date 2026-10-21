@@ -1,0 +1,77 @@
+{# Distance sales agreement and pre-contractual information. A template, not legal advice. #}
+<p>
+  This text is the pre-contractual information form and distance sales agreement under the
+  Turkish Consumer Protection Law No. 6502 and the Distance Contracts Regulation. The buyer reads
+  and accepts it before placing an order.
+</p>
+
+<h2>1. Parties</h2>
+<div class="legal-box">
+  <p><strong>Seller:</strong> {{ seller.name or missing }}</p>
+  <p>Address: {{ seller.address or missing }}</p>
+  <p>Tax / MERSIS no.: {{ seller.tax_id or missing }}</p>
+  <p>Email: {{ seller.email or missing }}{% if seller.phone %} · Phone: {{ seller.phone }}{% endif %}</p>
+</div>
+<p><strong>Buyer:</strong> the person who places the order, whose name and email address appear on the order form.</p>
+
+<h2>2. Subject</h2>
+<p>
+  The agreement covers the sale and performance of the digital services and products the buyer
+  orders on PHOENIXMARKET. Their main characteristics are on the product page; the chosen products
+  and packages, quantities, unit prices, any discount and the total are shown in the order summary
+  and the order confirmation email.
+</p>
+
+<h2>3. Payment</h2>
+<ul>
+  <li>Payment is made on the itemsatis listing you are sent to after ordering.</li>
+  {% if payment_window_hours %}
+  <li>An order not paid within {{ payment_window_hours|round|int }} hours of being placed is cancelled automatically, at no cost to the buyer.</li>
+  {% endif %}
+  <li>So the payment can be matched, the buyer sends the order number to the seller on itemsatis.</li>
+</ul>
+
+<h2>4. Performance and delivery</h2>
+<ul>
+  <li>Performance starts once the seller has confirmed the payment. The order status can be followed through the private tracking link given with the order confirmation.</li>
+  <li>Performance is completed within 30 days of the order at the latest.</li>
+  <li>If the seller finds it cannot perform the service, it informs the buyer and refunds the amount paid within 14 days of that notice at the latest.</li>
+</ul>
+
+<h2>5. Right of withdrawal</h2>
+<p>
+  As a rule the buyer may withdraw from the agreement within 14 days without giving a reason.
+  However, under Article 15 of the Distance Contracts Regulation there is no right of withdrawal for:
+</p>
+<ul>
+  <li>services performed instantly online and intangible goods delivered instantly (Art. 15/1-ğ),</li>
+  <li>services whose performance started, with the consumer's approval, before the withdrawal period ended (Art. 15/1-h).</li>
+</ul>
+<p>
+  By ticking the box on the order form the buyer agrees that performance starts right after the
+  payment is confirmed and confirms being informed that the right of withdrawal ends once
+  performance has started. Orders not yet started can be cancelled free of charge from the tracking
+  page before payment.
+</p>
+
+<h2>6. Defective performance</h2>
+<p>
+  If the service is performed incompletely or defectively, the buyer may, under Law No. 6502, ask
+  for it to be performed again, for a price reduction or to withdraw from the agreement. Requests go
+  to {{ seller.email or missing }} or through the <a href="{{ url_for('shop.contact') }}">contact form</a>,
+  quoting the order number.
+</p>
+
+<h2>7. Disputes</h2>
+<p>
+  Disputes arising from this agreement are handled, within the monetary limits set each year by the
+  Ministry of Trade, by the consumer arbitration committees at the buyer's or seller's place of
+  residence, and above those limits by the consumer courts.
+</p>
+
+<h2>8. Entry into force</h2>
+<p>
+  Before confirming the order, the buyer declares by ticking the box that they have read and accept
+  this text. The time of acceptance and the version of the text are recorded with the order. The
+  agreement is concluded when the order is placed.
+</p>

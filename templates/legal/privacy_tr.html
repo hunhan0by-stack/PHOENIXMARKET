@@ -1,0 +1,66 @@
+{# KVKK aydınlatma metni. Şablondur, hukuki tavsiye değildir: yayına almadan önce gözden geçirtin. #}
+<p>
+  Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") madde 10 uyarınca,
+  PHOENIXMARKET üzerinden alışveriş yapan, hesap oluşturan veya bizimle iletişime geçen
+  kişilerin kişisel verilerinin nasıl işlendiğini açıklar.
+</p>
+
+<h2>1. Veri sorumlusu</h2>
+<div class="legal-box">
+  <p><strong>{{ seller.name or missing }}</strong></p>
+  <p>{{ seller.address or missing }}</p>
+  <p>Vergi / MERSİS no: {{ seller.tax_id or missing }}</p>
+  <p>E-posta: {{ seller.email or missing }}{% if seller.phone %} · Telefon: {{ seller.phone }}{% endif %}</p>
+</div>
+
+<h2>2. İşlenen kişisel veriler</h2>
+<ul>
+  <li><strong>Kimlik ve iletişim:</strong> ad soyad, e-posta adresi.</li>
+  <li><strong>Sipariş bilgileri:</strong> satın alınan ürün ve paketler, tutar, indirim kodu, sipariş notu (ör. teslimat için verdiğiniz kullanıcı adı), sipariş durumu ve ödeme referansı.</li>
+  <li><strong>Hesap bilgileri:</strong> hesap oluşturduysanız e-posta adresiniz ve şifrenizin geri döndürülemez özeti (şifrenin kendisi saklanmaz), favorileriniz ve stok bildirim talepleriniz.</li>
+  <li><strong>Destek yazışmaları:</strong> iletişim formuyla gönderdiğiniz mesajlar ve yanıtlarımız.</li>
+  <li><strong>Teknik veriler:</strong> oturumu sürdürmek için zorunlu bir çerez. IP adresiniz saklanmaz; site istatistikleri her gün değişen anonim bir kimlikle tutulur ve 90 gün sonra silinir.</li>
+</ul>
+
+<h2>3. İşleme amaçları ve hukuki sebepler</h2>
+<ul>
+  <li>Siparişin alınması, ifası, size bildirim gönderilmesi ve destek verilmesi: sözleşmenin kurulması ve ifası (KVKK md. 5/2-c).</li>
+  <li>Fatura, muhasebe ve diğer yasal kayıtların tutulması: hukuki yükümlülüğün yerine getirilmesi (md. 5/2-ç).</li>
+  <li>Sitenin güvenliği, kötüye kullanımın ve dolandırıcılığın önlenmesi, hizmetin iyileştirilmesi: meşru menfaat (md. 5/2-f).</li>
+  <li>Stok bildirimi gibi talep ettiğiniz ek hizmetler: talebiniz üzerine sözleşmenin ifası (md. 5/2-c).</li>
+</ul>
+
+<h2>4. Aktarım</h2>
+<ul>
+  <li><strong>Ödeme:</strong> ödeme itemsatis üzerinden yapılır. Ödeme sırasında itemsatis'e kendiniz verdiğiniz bilgiler itemsatis'in kendi aydınlatma metnine tabidir. Biz itemsatis'e sizinle ilgili veri aktarmayız; ödemenin eşleştirilmesi için sipariş numaranızı satıcıya siz iletirsiniz.</li>
+  <li><strong>Barındırma ve e-posta:</strong> site, yurt dışında (ABD) sunucuları bulunan bir barındırma sağlayıcısında çalışır; sipariş ve bildirim e-postaları bir e-posta hizmet sağlayıcısı üzerinden gönderilir. Bu aktarımlar KVKK md. 9'daki şartlara uygun olarak yapılır.</li>
+  {% if chat_api_enabled %}
+  <li><strong>Yapay zekâ destek sohbeti:</strong> sohbet kutusuna yazdığınız mesajlar yanıt üretilmesi için OpenAI'a (ABD) iletilir. Sohbete kişisel veri yazmamanızı rica ederiz.</li>
+  {% endif %}
+  <li>Yasal olarak yetkili kamu kurumlarına, talep halinde ve mevzuatın gerektirdiği ölçüde.</li>
+</ul>
+
+<h2>5. Saklama süreleri</h2>
+<ul>
+  <li>Sipariş ve muhasebe kayıtları: ilgili mevzuattaki yasal saklama süreleri boyunca.</li>
+  <li>Hesap bilgileri: hesabınız açık kaldığı sürece. Hesabınızı Hesabım sayfasından kendiniz silebilirsiniz; yasal saklama yükümlülüğü olmayan veriler hemen silinir, siparişler hesaba bağlanmadan saklanır.</li>
+  <li>Destek yazışmaları: talebiniz sonuçlandıktan sonra makul bir süre ve olası uyuşmazlıklar için gerekli olduğu kadar.</li>
+  <li>Site istatistikleri: 90 gün. Şifre sıfırlama bağlantıları kısa sürede geçersiz olur.</li>
+</ul>
+
+<h2>6. Haklarınız (KVKK md. 11)</h2>
+<p>Veri sorumlusuna başvurarak şunları talep edebilirsiniz:</p>
+<ul>
+  <li>kişisel verilerinizin işlenip işlenmediğini ve işlenmişse buna ilişkin bilgileri öğrenme,</li>
+  <li>işlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,</li>
+  <li>yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme,</li>
+  <li>eksik veya yanlış işlenmişse düzeltilmesini, KVKK md. 7 şartlarında silinmesini veya yok edilmesini isteme ve bu işlemlerin aktarılan üçüncü kişilere bildirilmesini isteme,</li>
+  <li>münhasıran otomatik sistemlerle analiz edilmesi sonucu aleyhinize bir sonuç çıkmasına itiraz etme,</li>
+  <li>kanuna aykırı işleme nedeniyle zarara uğramanız halinde zararın giderilmesini talep etme.</li>
+</ul>
+<p>
+  Hesabınız varsa verilerinizin bir kopyasını <strong>Hesabım → Verilerimi indir</strong> ile
+  hemen alabilirsiniz. Diğer başvurularınızı {{ seller.email or missing }} adresine veya
+  <a href="{{ url_for('shop.contact') }}">iletişim formu</a> ile iletebilirsiniz. Başvurular en geç
+  30 gün içinde ücretsiz olarak sonuçlandırılır.
+</p>

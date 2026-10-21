@@ -36,7 +36,7 @@
           </div>
           <label class="flex items-center gap-2 pb-2 text-xs text-slate-300">
             <input type="checkbox" name="notify_customer" value="1" checked class="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-orange-500">
-            {{ t('adm_notify_customer') }}
+            {{ t('adm_payment_notify_customer') }}
           </label>
           <button type="submit" class="rounded-full bg-emerald-500 px-5 py-2 text-xs font-semibold text-black hover:bg-emerald-400">{{ t('adm_payment_confirm') }}</button>
         </form>
@@ -76,6 +76,9 @@
         <p><span class="text-slate-500">{{ t('adm_customer_colon') }}</span> {{ order.full_name }}</p>
         <p><span class="text-slate-500">{{ t('adm_email_colon') }}</span> {{ order.user_email }}</p>
         <p><span class="text-slate-500">{{ t('adm_placed_colon') }}</span> {{ order.created_at.strftime('%Y-%m-%d %H:%M UTC') if order.created_at else '—' }}</p>
+        <p><span class="text-slate-500">{{ t('adm_terms_accepted_colon') }}</span>
+          {% if order.terms_accepted_at %}{{ order.terms_accepted_at.strftime('%Y-%m-%d %H:%M UTC') }} <span class="text-xs text-slate-500">({{ t('adm_terms_version').format(version=order.terms_version) }})</span>{% else %}—{% endif %}
+        </p>
         {% if order.fulfillment_status == 'pending' %}
         <p><span class="text-slate-500">{{ t('adm_payment_due_colon') }}</span>
           {% if order.payment_due_at %}

@@ -65,6 +65,7 @@ def listings():
 
 
 PAYMENT_URL_MAX = 500
+DELIVERY_HOURS_MAX = 30 * 24
 
 
 def clean_payment_url(raw):
@@ -113,9 +114,20 @@ def parse_listing_form(existing=None):
         "stock": stock,
         "status": status,
         "payment_url": (f.get("payment_url") or "").strip(),
+        "delivery_hours": (f.get("delivery_hours") or "").strip(),
     }
     if not data["name"] or not data["description"] or not data["base_price"]:
         return data, "flash_listing_required"
+    if data["delivery_hours"]:
+        try:
+            data["delivery_hours"] = int(data["delivery_hours"])
+        except ValueError:
+            return data, "flash_delivery_hours_invalid"
+        # At most 30 days: the distance sales agreement promises delivery within 30 days
+        if not 1 <= data["delivery_hours"] <= DELIVERY_HOURS_MAX:
+            return data, "flash_delivery_hours_invalid"
+    else:
+        data["delivery_hours"] = None
     data["payment_url"], problem = clean_payment_url(data["payment_url"])
     if problem:
         data["payment_url"] = (f.get("payment_url") or "").strip()  # keep the input for correction

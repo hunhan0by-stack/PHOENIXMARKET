@@ -36,6 +36,14 @@
         <p class="text-[11px] text-slate-500">
           {{ site_content.checkout_helper_text }}
         </p>
+        <label class="flex items-start gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2 text-[11px] leading-relaxed text-slate-300">
+          <input type="checkbox" name="accept_terms" value="1" required class="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-600 bg-slate-900 accent-orange-500">
+          <span>
+            {{ t('checkout_terms_before') }}
+            <a href="{{ url_for('shop.legal_page', page='distance-sales') }}" target="_blank" rel="noopener" class="text-brandOrange underline hover:text-amber-200">{{ t('legal_distance-sales_title') }}</a>{{ t('checkout_terms_middle') }}
+            <a href="{{ url_for('shop.legal_page', page='privacy') }}" target="_blank" rel="noopener" class="text-brandOrange underline hover:text-amber-200">{{ t('legal_privacy_title') }}</a>{{ t('checkout_terms_after') }}
+          </span>
+        </label>
         <button type="submit" class="w-full rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2.5 text-sm font-semibold text-black">
           {{ site_content.checkout_button_label }}
         </button>

@@ -1,64 +1,76 @@
 {% extends "base.html" %}
-{% block title %}Admin Content – PHOENIXMARKET{% endblock %}
+{% block title %}{{ t('adm_content') }} – {{ t('adm_admin') }} – PHOENIXMARKET{% endblock %}
+{% set field_cls = "w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none" %}
+
+{# One text in both languages: English (used for EN visitors) and an optional
+   Turkish version; an empty Turkish field shows the built-in Turkish text. #}
+{% macro pair(key, label, rows=0) %}
+  <fieldset class="space-y-2">
+    <legend class="mb-1 block text-xs font-medium text-slate-300">{{ label }}</legend>
+    <div class="grid gap-2 md:grid-cols-2">
+      <label class="block">
+        <span lang="en" class="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">English</span>
+        {% if rows %}
+          <textarea name="{{ key }}" rows="{{ rows }}" class="{{ field_cls }}">{{ content_en[key] }}</textarea>
+        {% else %}
+          <input type="text" name="{{ key }}" value="{{ content_en[key] }}" class="{{ field_cls }}">
+        {% endif %}
+      </label>
+      <label class="block">
+        <span lang="tr" class="mb-1 block text-[10px] uppercase tracking-wider text-slate-500">Türkçe</span>
+        {% if rows %}
+          <textarea name="{{ key }}__tr" rows="{{ rows }}" placeholder="{{ content_tr_defaults[key] }}" class="{{ field_cls }}">{{ content_tr[key] }}</textarea>
+        {% else %}
+          <input type="text" name="{{ key }}__tr" value="{{ content_tr[key] }}" placeholder="{{ content_tr_defaults[key] }}" class="{{ field_cls }}">
+        {% endif %}
+      </label>
+    </div>
+  </fieldset>
+{% endmacro %}
+
+{% macro single(key, label) %}
+  <div>
+    <label for="{{ key }}" class="mb-1 block text-xs font-medium text-slate-300">{{ label }}</label>
+    <input id="{{ key }}" type="text" name="{{ key }}" value="{{ content_en[key] }}" class="{{ field_cls }}">
+  </div>
+{% endmacro %}
+
 {% block content %}
 <section class="bg-slate-950/90">
   <div class="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:px-8">
     <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">
-      Admin / Content
+      {{ t('adm_breadcrumb_content') }}
     </p>
     <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
-      Site content management
+      {{ t('adm_content_title') }}
     </h1>
     <p class="mt-1 text-sm text-slate-400">
-      Edit key marketplace texts such as the homepage hero section and checkout copy.
+      {{ t('adm_content_intro') }}
     </p>
+    <p class="mt-2 text-xs text-slate-500">{{ t('adm_content_languages_hint') }}</p>
 
-    <form method="post" class="mt-6 space-y-4 text-sm rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
-      <h2 class="text-sm font-semibold text-slate-100 mb-1">Homepage hero</h2>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Hero badge</label>
-        <input type="text" name="hero_badge" value="{{ site_content.hero_badge }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Hero title</label>
-        <input type="text" name="hero_title" value="{{ site_content.hero_title }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Hero subtitle</label>
-        <textarea name="hero_subtitle" rows="3" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">{{ site_content.hero_subtitle }}</textarea>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Hero CTA label</label>
-        <input type="text" name="hero_cta_label" value="{{ site_content.hero_cta_label }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
-      </div>
+    <form method="post" class="mt-6 space-y-5 text-sm rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
+      {{ csrf_field() }}
+      <h2 class="text-sm font-semibold text-slate-100">{{ t('adm_hero') }}</h2>
+      {{ pair('hero_badge', t('adm_hero_badge')) }}
+      {{ single('hero_title', t('adm_hero_title')) }}
+      {{ pair('hero_subtitle', t('adm_hero_subtitle'), rows=3) }}
+      {{ pair('hero_cta_label', t('adm_hero_cta')) }}
 
-      <h2 class="pt-4 text-sm font-semibold text-slate-100 mb-1">Checkout</h2>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Checkout helper text</label>
-        <textarea name="checkout_helper_text" rows="3" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">{{ site_content.checkout_helper_text }}</textarea>
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Checkout button label</label>
-        <input type="text" name="checkout_button_label" value="{{ site_content.checkout_button_label }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
-      </div>
+      <h2 class="pt-4 text-sm font-semibold text-slate-100">{{ t('adm_checkout_section') }}</h2>
+      {{ pair('checkout_helper_text', t('adm_checkout_helper'), rows=3) }}
+      {{ pair('checkout_button_label', t('adm_checkout_button')) }}
 
-      <h2 class="pt-4 text-sm font-semibold text-slate-100 mb-1">Footer</h2>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Footer contact text</label>
-        <input type="text" name="footer_contact_text" value="{{ site_content.footer_contact_text }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
-      </div>
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Footer Discord text</label>
-        <input type="text" name="footer_discord_text" value="{{ site_content.footer_discord_text }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
-      </div>
+      <h2 class="pt-4 text-sm font-semibold text-slate-100">{{ t('adm_footer') }}</h2>
+      {{ single('footer_contact_text', t('adm_footer_contact')) }}
+      {{ single('footer_discord_text', t('adm_footer_discord')) }}
 
       <div class="pt-4 flex justify-end">
         <button type="submit" class="inline-flex rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-5 py-2 text-xs font-semibold text-black">
-          Save content
+          {{ t('adm_save_content') }}
         </button>
       </div>
     </form>
   </div>
 </section>
 {% endblock %}
-

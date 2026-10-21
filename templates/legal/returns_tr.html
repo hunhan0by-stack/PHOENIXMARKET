@@ -1,0 +1,33 @@
+{# İptal, iade ve teslimat koşulları. Şablondur, hukuki tavsiye değildir. #}
+<h2>Teslimat</h2>
+<ul>
+  <li>Satılan ürün ve hizmetler dijitaldir; fiziksel kargo gönderimi yapılmaz.</li>
+  <li>Hizmetin ifasına, ödemeniz itemsatis üzerinden alınıp onaylandıktan sonra başlanır.</li>
+  <li>Siparişinizin durumunu, sipariş onayında ve e-postanızda bulunan özel takip bağlantısından izleyebilirsiniz.</li>
+  <li>İfa, siparişten itibaren en geç 30 gün içinde tamamlanır.</li>
+</ul>
+
+<h2>İptal</h2>
+<ul>
+  <li>Ödeme yapmadan önce siparişinizi takip sayfasındaki "Siparişi iptal et" düğmesiyle ücretsiz iptal edebilirsiniz.</li>
+  {% if payment_window_hours %}
+  <li>Verildikten sonra {{ payment_window_hours|round|int }} saat içinde ödenmeyen siparişler otomatik olarak iptal edilir ve size e-postayla bildirilir.</li>
+  {% endif %}
+  <li>Ödeme yaptıktan sonra iptal talepleriniz için sipariş numaranızla bizimle iletişime geçin.</li>
+</ul>
+
+<h2>İade</h2>
+<ul>
+  <li>Ödemesi yapılmış ancak ifasına henüz başlanmamış siparişlerde, iptal talebiniz üzerine ödediğiniz tutar iade edilir.</li>
+  <li>Siparişin ifası mümkün olmazsa durumu size bildiririz ve tahsil edilen tutarı bildirimden itibaren en geç 14 gün içinde iade ederiz.</li>
+  <li>Hizmet eksik veya ayıplı ifa edildiyse yeniden ifa, bedelden indirim veya iade talep edebilirsiniz.</li>
+  <li>Ödemeler itemsatis üzerinden alındığından iadeler de itemsatis'in iade süreçleri aracılığıyla yapılır.</li>
+  <li>Ödemenin onaylanmasından hemen sonra ifasına başlanan dijital hizmetlerde, ifaya başlandıktan sonra cayma hakkı kullanılamaz (<a href="{{ url_for('shop.legal_page', page='distance-sales') }}">Mesafeli satış sözleşmesi</a>, madde 5).</li>
+</ul>
+
+<h2>İletişim</h2>
+<p>
+  İptal, iade ve teslimatla ilgili talepleriniz için {{ seller.email or missing }} adresine yazabilir
+  veya <a href="{{ url_for('shop.contact') }}">iletişim formunu</a> kullanabilirsiniz. Lütfen
+  sipariş numaranızı belirtin.
+</p>

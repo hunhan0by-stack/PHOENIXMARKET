@@ -18,11 +18,13 @@ from flask import (
 from markupsafe import escape
 
 from services.currency import convert, format_price
+import services.legal as legal
 from services.listing import get_base_currency, get_base_price
 import services.notifications as notifications
 from services.pagination import Page
 from services.ratelimit import RateLimiter
 import services.store as store
+import services.unpaid_orders as unpaid_orders
 from services.uploads import product_image_url, upload_folder
 from services.web import (
     CURRENCY_KEY,
@@ -422,11 +424,26 @@ def uploaded_file(filename):
 # -----------------------------------------------------------------------------
 # SEO and health check (for Render and load balancers)
 # -----------------------------------------------------------------------------
+@bp.route("/legal/<page>")
+def legal_page(page):
+    """Privacy / KVKK notice, distance sales agreement, returns and delivery, cookies."""
+    if page not in legal.PAGES:
+        abort(404)
+    return render_template(
+        "legal_page.html",
+        page=page,
+        seller=legal.seller_info(),
+        payment_window_hours=unpaid_orders.payment_window_hours(),
+        legal_version=legal.LEGAL_VERSION,
+    )
+
+
 @bp.route("/sitemap.xml")
 def sitemap():
     """Generate sitemap for SEO."""
     base_url = request.url_root.rstrip("/")
     pages = [("/", "daily", "1.0"), ("/products", "daily", "0.9"), ("/contact", "monthly", "0.5")]
+    pages += [(f"/legal/{page}", "yearly", "0.2") for page in legal.PAGES]
     for c in store.list_categories():
         pages.append((f"/category/{c['slug']}", "weekly", "0.8"))
     pages = [(path, freq, prio, None) for path, freq, prio in pages]

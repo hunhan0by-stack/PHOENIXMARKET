@@ -1,0 +1,79 @@
+{# Mesafeli satış sözleşmesi ve ön bilgilendirme formu. Şablondur, hukuki tavsiye değildir. #}
+<p>
+  Bu metin, 6502 sayılı Tüketicinin Korunması Hakkında Kanun ve Mesafeli Sözleşmeler
+  Yönetmeliği kapsamında ön bilgilendirme formu ve mesafeli satış sözleşmesi olarak
+  hazırlanmıştır. Alıcı, siparişi vermeden önce bu metni okuyup onaylar.
+</p>
+
+<h2>1. Taraflar</h2>
+<div class="legal-box">
+  <p><strong>Satıcı:</strong> {{ seller.name or missing }}</p>
+  <p>Adres: {{ seller.address or missing }}</p>
+  <p>Vergi / MERSİS no: {{ seller.tax_id or missing }}</p>
+  <p>E-posta: {{ seller.email or missing }}{% if seller.phone %} · Telefon: {{ seller.phone }}{% endif %}</p>
+</div>
+<p>
+  <strong>Alıcı:</strong> siparişi veren ve sipariş formunda adı ve e-posta adresi yer alan kişi.
+</p>
+
+<h2>2. Sözleşmenin konusu</h2>
+<p>
+  Sözleşmenin konusu, Alıcı'nın PHOENIXMARKET üzerinden sipariş verdiği dijital hizmet ve
+  ürünlerin satışı ve ifasıdır. Hizmetin temel nitelikleri ürün sayfasında; seçilen ürün ve
+  paketler, adetler, birim fiyatlar, uygulanan indirim ve toplam tutar sipariş özetinde ve
+  sipariş onay e-postasında yer alır.
+</p>
+
+<h2>3. Ödeme</h2>
+<ul>
+  <li>Ödeme, siparişten sonra yönlendirildiğiniz itemsatis ilanı üzerinden yapılır.</li>
+  {% if payment_window_hours %}
+  <li>Sipariş, verildiği andan itibaren {{ payment_window_hours|round|int }} saat içinde ödenmezse otomatik olarak iptal edilir; bu durumda Alıcı'dan herhangi bir ücret alınmaz.</li>
+  {% endif %}
+  <li>Ödemenin eşleştirilebilmesi için Alıcı, sipariş numarasını itemsatis üzerinden Satıcı'ya iletir.</li>
+</ul>
+
+<h2>4. İfa ve teslim</h2>
+<ul>
+  <li>Hizmetin ifasına ödemenin Satıcı tarafından onaylanmasından sonra başlanır. Sipariş durumu, sipariş onayında verilen özel takip bağlantısından izlenebilir.</li>
+  <li>İfa, siparişten itibaren en geç 30 gün içinde tamamlanır.</li>
+  <li>Satıcı, hizmeti ifa edemeyeceğini anlarsa durumu Alıcı'ya bildirir ve tahsil edilen tutarı bildirimden itibaren en geç 14 gün içinde iade eder.</li>
+</ul>
+
+<h2>5. Cayma hakkı</h2>
+<p>
+  Alıcı, kural olarak sözleşmenin kurulduğu tarihten itibaren 14 gün içinde gerekçe göstermeden
+  cayma hakkına sahiptir. Ancak Mesafeli Sözleşmeler Yönetmeliği madde 15 uyarınca:
+</p>
+<ul>
+  <li>elektronik ortamda anında ifa edilen hizmetler ve tüketiciye anında teslim edilen gayrimaddi mallar (md. 15/1-ğ),</li>
+  <li>cayma hakkı süresi sona ermeden önce, tüketicinin onayı ile ifasına başlanan hizmetler (md. 15/1-h)</li>
+</ul>
+<p>
+  için cayma hakkı kullanılamaz. Alıcı, sipariş formundaki onay kutusunu işaretleyerek hizmetin
+  ödemenin onaylanmasından hemen sonra ifasına başlanmasını kabul eder ve ifaya başlandıktan
+  sonra cayma hakkının sona ereceği konusunda bilgilendirildiğini beyan eder. İfaya
+  başlanmamış siparişler, ödeme yapılmadan önce takip sayfasından ücretsiz iptal edilebilir.
+</p>
+
+<h2>6. Ayıplı ifa</h2>
+<p>
+  Hizmetin eksik veya ayıplı ifa edilmesi halinde Alıcı, 6502 sayılı Kanun'un ilgili
+  hükümleri uyarınca hizmetin yeniden ifasını, bedelden indirim yapılmasını veya sözleşmeden
+  dönmeyi talep edebilir. Talepler {{ seller.email or missing }} adresine veya
+  <a href="{{ url_for('shop.contact') }}">iletişim formu</a> ile sipariş numarası belirtilerek iletilir.
+</p>
+
+<h2>7. Uyuşmazlıklar</h2>
+<p>
+  Bu sözleşmeden doğan uyuşmazlıklarda, Ticaret Bakanlığınca her yıl belirlenen parasal sınırlar
+  dahilinde Alıcı'nın veya Satıcı'nın yerleşim yerindeki tüketici hakem heyetleri, bu sınırları
+  aşan durumlarda tüketici mahkemeleri yetkilidir.
+</p>
+
+<h2>8. Yürürlük</h2>
+<p>
+  Alıcı, siparişi onaylamadan önce bu metni okuduğunu ve kabul ettiğini onay kutusunu
+  işaretleyerek beyan eder. Onay zamanı ve metnin sürümü siparişle birlikte kaydedilir.
+  Sözleşme, siparişin verilmesiyle kurulur.
+</p>

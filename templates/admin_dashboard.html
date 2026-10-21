@@ -57,6 +57,19 @@
       </nav>
     </div>
 
+    {% if legal_missing or not legal_reviewed %}
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
+        <span>
+          {% if legal_missing %}
+            {{ t('adm_legal_missing') }}
+            {% for field in legal_missing %}{{ t('adm_seller_' ~ field) }}{{ ', ' if not loop.last }}{% endfor %}.
+          {% endif %}
+          {% if not legal_reviewed %}{{ t('adm_legal_not_reviewed') }}{% endif %}
+        </span>
+        <a href="{{ url_for('admin.settings') }}#legal" class="font-semibold text-amber-100 underline hover:text-brandOrange">{{ t('adm_legal_fix') }}</a>
+      </div>
+    {% endif %}
+
     {% if backup_overdue %}
       <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
         <span>{{ t('adm_backup_reminder') }}</span>

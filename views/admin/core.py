@@ -6,6 +6,7 @@ import secrets
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 
 import services.backup as backup
+import services.legal as legal
 import services.store as store
 from services.web import client_ip, is_admin, tr_msg
 from views.admin.base import admin_login_limiter, bp
