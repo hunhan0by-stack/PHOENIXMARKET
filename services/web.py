@@ -5,6 +5,7 @@ flash messages, the signed-in customer, the admin flag, CSRF tokens and safe
 """
 import re
 import secrets
+from datetime import timedelta, timezone
 from urllib.parse import urlparse
 
 from flask import g, redirect, request, session, url_for
@@ -22,6 +23,23 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
 
 CSRF_SESSION_KEY = "_csrf_token"
+
+
+# Turkey keeps UTC+3 all year (no daylight saving since 2016)
+TURKEY_TIME = timezone(timedelta(hours=3))
+
+
+def customer_time(dt, locale):
+    """A moment as customers read it: Turkish time for TR, UTC otherwise.
+
+    Takes the locale explicitly (not from the session) because order emails
+    are also rendered outside the customer's own request.
+    """
+    if not dt:
+        return ""
+    if locale == "tr":
+        return dt.astimezone(TURKEY_TIME).strftime("%d.%m.%Y %H:%M") + " (TSİ)"
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def get_current_locale():

@@ -1,11 +1,13 @@
 import hashlib
 import os
+import time
 from pathlib import Path
 
 from flask import Flask, flash, jsonify, render_template, request, session
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import services.backup as backup
 from services.currency import format_price
 from services.database import init_app as register_db, init_schema
 from services.listing import (
@@ -15,6 +17,7 @@ from services.listing import (
 )
 import services.store as store
 from services.translations import t as translate
+import services.unpaid_orders as unpaid_orders
 from services.uploads import product_image_url
 from services.web import (
     MIN_PASSWORD_LENGTH,
@@ -26,6 +29,7 @@ from services.web import (
     csrf_field,
     csrf_token_valid,
     current_user,
+    customer_time,
     get_csrf_token,
     get_current_currency,
     get_current_locale,
@@ -95,6 +99,18 @@ app.config["ADMIN_PASSWORD"] = ADMIN_PASSWORD
 DATA_DIR = app_root / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 app.config["DATABASE_PATH"] = os.getenv("DATABASE_PATH", str(DATA_DIR / "phoenixmarket.db"))
+# Daily database copies; default is a "backups" folder next to the database
+app.config["BACKUP_DIR"] = os.getenv("BACKUP_DIR") or None
+
+# Hours a customer has to pay before an unpaid order is cancelled and its
+# stock released; 0 turns automatic cancellation off.
+try:
+    app.config["PENDING_ORDER_TTL_HOURS"] = max(
+        float(os.getenv("PENDING_ORDER_TTL_HOURS") or unpaid_orders.DEFAULT_PAYMENT_WINDOW_HOURS), 0.0
+    )
+except ValueError:
+    app.logger.warning("PENDING_ORDER_TTL_HOURS is not a number; using the default")
+    app.config["PENDING_ORDER_TTL_HOURS"] = float(unpaid_orders.DEFAULT_PAYMENT_WINDOW_HOURS)
 
 register_db(app)
 with app.app_context():
@@ -117,6 +133,9 @@ if os.getenv("RENDER"):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 register_blueprints(app)
+# A global (not a context processor) so order emails rendered outside the
+# customer's request can use it too
+app.jinja_env.globals["customer_time"] = customer_time
 
 # Cache-busting token for the compiled stylesheet (changes whenever it is rebuilt)
 _css_path = app_root / "static" / "css" / "app.css"
@@ -166,6 +185,34 @@ def inject_globals():
         "SUPPORTED_LOCALES": SUPPORTED_LOCALES,
         "SUPPORTED_CURRENCIES": SUPPORTED_CURRENCIES,
     }
+
+
+# Periodic maintenance rides on incoming requests (Render's health checks keep
+# it going without visitors): Render web services have no scheduler.
+HOUSEKEEPING_INTERVAL_SECONDS = 10 * 60
+_housekeeping = {"next": 0.0}
+
+
+@app.before_request
+def housekeeping():
+    if not app.config.get("HOUSEKEEPING_ENABLED", True) or request.path.startswith("/static/"):
+        return
+    now = time.monotonic()
+    if now < _housekeeping["next"]:
+        return
+    _housekeeping["next"] = now + HOUSEKEEPING_INTERVAL_SECONDS
+    backup.maybe_auto_backup()
+    if unpaid_orders.payment_window_hours() > 0:
+        try:
+            unpaid_orders.cancel_overdue_orders()
+        except Exception:  # noqa: BLE001 - maintenance never breaks the visitor's request
+            app.logger.exception("Cancelling unpaid orders failed")
+
+
+@app.cli.command("backup")
+def backup_command():
+    """Write a database backup now (e.g. from a Render shell): flask --app app backup"""
+    print(backup.create_backup())
 
 
 @app.before_request

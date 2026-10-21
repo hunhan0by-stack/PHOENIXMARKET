@@ -57,6 +57,13 @@
       </nav>
     </div>
 
+    {% if backup_overdue %}
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
+        <span>{{ t('adm_backup_reminder') }}</span>
+        <a href="{{ url_for('admin.settings') }}#backups" class="font-semibold text-amber-100 underline hover:text-brandOrange">{{ t('adm_backup_reminder_link') }}</a>
+      </div>
+    {% endif %}
+
     <div class="mt-8 grid gap-6 md:grid-cols-3">
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
         <p class="text-xs text-slate-400">{{ t('adm_products_active_total') }}</p>

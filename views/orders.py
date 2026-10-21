@@ -35,6 +35,7 @@ from services.currency import convert, format_price
 import services.notifications as notifications
 from services.ratelimit import RateLimiter
 import services.store as store
+import services.unpaid_orders as unpaid_orders
 from services.web import (
     EMAIL_RE,
     client_ip,
@@ -274,6 +275,7 @@ def checkout():
                 locale=get_current_locale(),
                 coupon=coupon,
                 discount_usd=discount_usd,
+                payment_window_hours=unpaid_orders.payment_window_hours(),
             )
         except store.OutOfStockError as exc:
             flash(tr_msg("flash_checkout_stock", name=exc.product_name), "error")

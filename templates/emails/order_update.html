@@ -2,7 +2,9 @@
 {% block body %}
   <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;">{{ t('email_update_subject').format(id=order.id) }}</h1>
   <p style="margin:0 0 16px;color:#cbd5e1;">{{ t('email_update_intro') }}</p>
-  {% if 'status_changed' in changes %}
+  {% if 'expired' in changes %}
+    <p style="margin:0 0 8px;">{{ t('email_order_expired') }}</p>
+  {% elif 'status_changed' in changes %}
     <p style="margin:0 0 8px;">{{ t('timeline_status').format(status=t('status_' ~ order.fulfillment_status)) }}</p>
   {% endif %}
   {% if 'tracking_updated' in changes and order.tracking_number %}

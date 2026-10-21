@@ -21,6 +21,7 @@ data/*.db-shm
 data/*.db-wal
 data/*.sqlite*
 data/analytics.json
+data/backups/
 static/uploads/
 
 # Logs and temporary files

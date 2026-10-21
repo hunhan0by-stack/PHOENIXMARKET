@@ -15,6 +15,8 @@ ITEMSATIS_URL = "https://itemsatis.test/shop"
 ADMIN_LOGIN = {"username": "admin", "password": "admin-pass"}
 
 app.config["TESTING"] = True
+# Periodic maintenance (backups, order expiry) is exercised by its own tests
+app.config["HOUSEKEEPING_ENABLED"] = False
 
 
 def in_app(fn, *args, **kwargs):

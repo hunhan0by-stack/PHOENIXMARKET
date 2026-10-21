@@ -24,6 +24,9 @@
   <p style="margin:20px 0 8px;">
     <a href="{{ payment_url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('email_pay_cta') }}</a>
   </p>
+  {% if order.payment_due_at %}
+    <p style="margin:8px 0 0;font-size:13px;color:#fcd34d;">{{ t('order_payment_due').format(when=customer_time(order.payment_due_at, locale)) }}</p>
+  {% endif %}
   <p style="margin:8px 0 0;">
     <a href="{{ track_url }}" style="color:#f97316;">{{ t('track_order_cta') }} →</a>
   </p>

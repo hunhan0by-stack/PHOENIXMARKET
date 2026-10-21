@@ -34,6 +34,11 @@
       <p class="mt-3 text-center text-[11px] text-slate-500">
         {{ site_content.checkout_helper_text }}
       </p>
+      {% if order.payment_due_at and order.fulfillment_status == 'pending' %}
+        <p class="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-center text-xs text-amber-200" role="note">
+          {{ t('order_payment_due').format(when=customer_time(order.payment_due_at, locale)) }}
+        </p>
+      {% endif %}
     </div>
   </div>
 </section>

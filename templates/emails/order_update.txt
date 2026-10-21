@@ -1,7 +1,9 @@
 {{ t('email_update_subject').format(id=order.id) }}
 
 {{ t('email_update_intro') }}
-{% if 'status_changed' in changes %}
+{% if 'expired' in changes %}
+{{ t('email_order_expired') }}
+{% elif 'status_changed' in changes %}
 {{ t('timeline_status').format(status=t('status_' ~ order.fulfillment_status)) }}
 {% endif %}{% if 'tracking_updated' in changes and order.tracking_number %}
 {{ t('timeline_tracking').format(number=order.tracking_number) }}

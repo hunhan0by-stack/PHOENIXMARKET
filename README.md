@@ -16,7 +16,10 @@ deployed on Render with gunicorn.
   its own price and stock; customers must pick one.
 - **Orders:** stock is reserved atomically at checkout and returned on
   cancellation; discount codes; order timeline; customers can cancel pending
-  orders from their tracking page.
+  orders from their tracking page. Orders not paid within the payment window
+  (default 24 hours, shown to the customer) are cancelled automatically and
+  their stock and discount-code use released. Orders placed before this
+  feature, or re-opened by the admin, have no deadline.
 - **Accounts:** sign-up / sign-in with hashed passwords, password change, reset
   by email, order history.
 - **Admin:** dashboard with 30-day sales, listings and packages, categories,
@@ -78,6 +81,8 @@ tailwindcss -c tailwind.config.js -i static/css/input.css -o static/css/app.css 
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Admin login. **Required in production.** |
 | `DATABASE_PATH` | SQLite file (default `data/phoenixmarket.db`). |
 | `UPLOAD_DIR` | Listing images (default `static/uploads`), served from `/uploads/`. |
+| `BACKUP_DIR` | Daily database copies (default: `backups/` next to `DATABASE_PATH`). |
+| `PENDING_ORDER_TTL_HOURS` | Hours a customer has to pay (default `24`); unpaid orders are then cancelled and their stock released. `0` turns this off. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `SMTP_STARTTLS`, `SMTP_SSL` | Email delivery. Without `SMTP_HOST` emails are only logged in Admin → Emails. |
 | `OPENAI_API_KEY` | Enables AI answers in the support chat. |
 | `EXCHANGE_RATE_*`, `TRY_PER_USD`, `EUR_PER_USD` | Exchange-rate source and fallbacks. |
@@ -95,6 +100,28 @@ See `.env.example` for a template.
 - **Keep one worker:** rate limits are kept in process memory.
 - Schema changes are applied automatically and non-destructively at start-up
   (`services/database.py`: new tables are created, missing columns added).
+
+## Backups
+
+- **Automatic:** once a day the app writes a verified copy of the database
+  (SQLite online backup, safe while the shop is running) to `BACKUP_DIR` and
+  keeps the newest 7. Render web services have no scheduler, so the check rides
+  on incoming requests (Render's health checks count) at most every 10 minutes.
+- **Off-site copy:** those copies live on the same disk as the database and do
+  not survive losing that disk. Download one at least weekly from
+  Admin → Settings → Database backups; the dashboard reminds you after 7 days.
+- **Manual:** `flask --app app backup` (e.g. in a Render shell) writes a copy now.
+
+**Restoring** a backup (`phoenixmarket-YYYYMMDD-HHMMSS.db`, times in UTC):
+
+1. Stop the service (Render: *Suspend*; locally: stop the server).
+2. Keep the current database aside, e.g. rename `phoenixmarket.db` to
+   `phoenixmarket.db.before-restore`, and delete `phoenixmarket.db-wal` and
+   `phoenixmarket.db-shm` if present.
+3. Copy the backup to the `DATABASE_PATH` location under the name
+   `phoenixmarket.db`.
+4. Start the service and check the admin dashboard and the latest orders.
+   Orders placed after the backup was taken are not in it.
 
 ## Project layout
 

@@ -452,8 +452,11 @@ def update_order_fulfillment(
     OrderChangedError when the order has moved on since (stale form, double
     submit, concurrent change).
     Each change is added to the order timeline (a customer's own cancellation
-    as "cancelled_by_customer"). Returns the list of event types recorded
+    as "cancelled_by_customer", an automatic one for non-payment, actor
+    "system", as "expired"). Returns the list of event types recorded
     (empty when nothing changed or the order does not exist).
+    Moving an order back to pending removes its payment deadline: from then
+    on the admin decides, it is never cancelled automatically.
     """
     db = get_db()
     row = db.execute(
@@ -497,7 +500,9 @@ def update_order_fulfillment(
                 (-1 if now_cancelled else 1, row["coupon_code"]),
             )
         if old_status != fulfillment_status:
-            event = "cancelled_by_customer" if actor == "customer" else "status_changed"
+            event = {"customer": "cancelled_by_customer", "system": "expired"}.get(
+                actor, "status_changed"
+            )
             _add_order_event(
                 db, order_id, event, now,
                 from_status=old_status, to_status=fulfillment_status,
@@ -509,22 +514,40 @@ def update_order_fulfillment(
         if carrier_note and carrier_note != row["carrier_note"]:
             _add_order_event(db, order_id, "customer_note", now, note=carrier_note)
             recorded.append("customer_note")
+        reopened = old_status != fulfillment_status and fulfillment_status == "pending"
         db.execute(
             """
             UPDATE orders SET
                 fulfillment_status = ?,
                 tracking_number = ?,
                 carrier_note = ?,
-                updated_at = ?
+                updated_at = ?,
+                payment_due_at = CASE WHEN ? THEN NULL ELSE payment_due_at END
             WHERE id = ?
             """,
-            (fulfillment_status, tracking_number, carrier_note, now, order_id),
+            (fulfillment_status, tracking_number, carrier_note, now, int(reopened), order_id),
         )
     except Exception:
         db.rollback()
         raise
     db.commit()
     return recorded
+
+
+def list_overdue_unpaid_orders(now: datetime, limit: int = 50) -> list:
+    """Pending orders whose payment deadline has passed, oldest deadline first."""
+    db = get_db()
+    rows = db.execute(
+        """
+        SELECT * FROM orders
+        WHERE fulfillment_status = 'pending'
+          AND payment_due_at IS NOT NULL AND payment_due_at <= ?
+        ORDER BY payment_due_at ASC, id ASC
+        LIMIT ?
+        """,
+        (now.astimezone(timezone.utc).isoformat(), limit),
+    ).fetchall()
+    return [_order_from_row(r, include_items=True) for r in rows]
 
 
 def record_payment(order_id: int, reference: str | None = None) -> list:

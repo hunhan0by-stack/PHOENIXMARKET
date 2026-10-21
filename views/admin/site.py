@@ -5,6 +5,7 @@ import sqlite3
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
 
+import services.backup as backup
 import services.store as store
 from services.web import SUPPORTED_LOCALES, tr_msg
 from views.admin.base import bp
@@ -49,4 +50,40 @@ def settings():
 
         flash(tr_msg("flash_settings_updated"), "success")
         return redirect(url_for("admin.settings"))
-    return render_template("admin_settings.html")
+    return render_template(
+        "admin_settings.html",
+        backups=backup.list_backups(),
+        last_download=backup.last_download_at(),
+        backup_overdue=backup.download_overdue(),
+    )
+
+
+def send_backup(path):
+    backup.mark_downloaded()
+    return send_file(
+        path,
+        mimetype="application/vnd.sqlite3",
+        as_attachment=True,
+        download_name=path.name,
+        max_age=0,
+    )
+
+
+@bp.route("/admin/backups", methods=["POST"])
+def create_backup():
+    """Take a fresh copy of the database and download it."""
+    try:
+        path = backup.create_backup()
+    except (backup.BackupError, OSError, sqlite3.Error):
+        current_app.logger.exception("Manual database backup failed")
+        flash(tr_msg("flash_backup_failed"), "error")
+        return redirect(url_for("admin.settings"))
+    return send_backup(path)
+
+
+@bp.route("/admin/backups/<name>")
+def download_backup(name):
+    path = backup.backup_path(name)
+    if path is None:
+        abort(404)
+    return send_backup(path)

@@ -20,6 +20,12 @@
           {{ t('status_' ~ order.fulfillment_status) }}
         </span>
       </div>
+      {% if order.payment_due_at and order.fulfillment_status == 'pending' %}
+      <div class="flex flex-wrap justify-between gap-2">
+        <span class="text-slate-400">{{ t('track_payment_due_label') }}</span>
+        <span class="text-amber-200">{{ customer_time(order.payment_due_at, locale) }}</span>
+      </div>
+      {% endif %}
       {% if order.tracking_number %}
       <div>
         <p class="text-xs text-slate-500">{{ t('tracking_number_label') }}</p>
@@ -55,7 +61,7 @@
 
     <div class="mt-6 rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
       <h2 class="mb-4 text-sm font-semibold text-slate-100">{{ t('timeline_title') }}</h2>
-      {{ order_timeline(order, events) }}
+      {{ order_timeline(order, events, customer=True) }}
     </div>
 
     {% if order.fulfillment_status == 'pending' %}

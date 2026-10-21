@@ -267,7 +267,15 @@ def init_schema():
     # Package bought (NULL for listings without packages).
     _ensure_column(db, "order_items", "variant_id", "variant_id INTEGER")
     _ensure_column(db, "order_items", "variant_name", "variant_name TEXT")
+    # Unpaid orders are cancelled automatically after this moment (UTC ISO).
+    # NULL = no deadline: orders placed before the feature, or re-opened by
+    # the admin, are never cancelled automatically.
+    _ensure_column(db, "orders", "payment_due_at", "payment_due_at TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_orders_payment_due "
+        "ON orders(fulfillment_status, payment_due_at)"
+    )
     # Replies sent before the history table existed become its first entries
     # (idempotent: only messages without any history row are copied).
     db.execute(

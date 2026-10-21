@@ -8,7 +8,8 @@
 {% endif %}{{ t('order_total_label') }}: ${{ "%.2f"|format(order.total_price) }}
 
 {{ t('email_pay_cta') }}: {{ payment_url }}
-{{ t('track_order_cta') }}: {{ track_url }}
+{% if order.payment_due_at %}{{ t('order_payment_due').format(when=customer_time(order.payment_due_at, locale)) }}
+{% endif %}{{ t('track_order_cta') }}: {{ track_url }}
 
 {{ t('email_track_hint') }}
 

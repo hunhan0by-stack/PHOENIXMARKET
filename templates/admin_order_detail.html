@@ -44,6 +44,16 @@
         <p><span class="text-slate-500">{{ t('adm_customer_colon') }}</span> {{ order.full_name }}</p>
         <p><span class="text-slate-500">{{ t('adm_email_colon') }}</span> {{ order.user_email }}</p>
         <p><span class="text-slate-500">{{ t('adm_placed_colon') }}</span> {{ order.created_at.strftime('%Y-%m-%d %H:%M UTC') if order.created_at else '—' }}</p>
+        {% if order.fulfillment_status == 'pending' %}
+        <p><span class="text-slate-500">{{ t('adm_payment_due_colon') }}</span>
+          {% if order.payment_due_at %}
+            <span class="text-amber-200">{{ order.payment_due_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+            <span class="block text-[11px] text-slate-500">{{ t('adm_payment_due_hint') }}</span>
+          {% else %}
+            <span class="text-slate-400">{{ t('adm_payment_due_none') }}</span>
+          {% endif %}
+        </p>
+        {% endif %}
         {% if order.notes %}
         <p><span class="text-slate-500">{{ t('adm_checkout_notes_colon') }}</span><br><span class="text-slate-200 whitespace-pre-wrap">{{ order.notes }}</span></p>
         {% endif %}
