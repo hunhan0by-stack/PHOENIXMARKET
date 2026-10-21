@@ -97,6 +97,7 @@ tailwindcss -c tailwind.config.js -i static/css/input.css -o static/css/app.css 
 | `DATABASE_PATH` | SQLite file (default `data/phoenixmarket.db`). |
 | `UPLOAD_DIR` | Listing images (default `static/uploads`), served from `/uploads/`. |
 | `BACKUP_DIR` | Daily database copies (default: `backups/` next to `DATABASE_PATH`). |
+| `DEFAULT_LOCALE` | `en` (default) or `tr`: language for first-time visitors and search engines. Each page is also reachable as `?lang=tr` / `?lang=en` (canonical + hreflang + sitemap). |
 | `PENDING_ORDER_TTL_HOURS` | Hours a customer has to pay (default `24`); unpaid orders are then cancelled and their stock released. `0` turns this off. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `SMTP_STARTTLS`, `SMTP_SSL` | Email delivery. Without `SMTP_HOST` emails are only logged in Admin → Emails. |
 | `OPENAI_API_KEY` | Enables AI answers in the support chat. |

@@ -1,6 +1,7 @@
 # Pre-release check: the full test suite (includes the stylesheet guard and the
-# EN/TR key parity) and, when a local database exists, a migration rehearsal on
-# a copy of it (the original is never opened).
+# EN/TR key parity), a known-vulnerability scan of requirements.txt (pip-audit,
+# needs network) and, when a local database exists, a migration rehearsal on a
+# copy of it (the original is never opened).
 #
 #   .\scripts\check.ps1                       # uses "python" from PATH
 #   .\scripts\check.ps1 -Python .venv\Scripts\python.exe
@@ -12,6 +13,10 @@ $env:PYTHONDONTWRITEBYTECODE = "1"
 Write-Host "== Tests ==" -ForegroundColor Cyan
 & $Python -m pytest -p no:cacheprovider -q
 if ($LASTEXITCODE -ne 0) { Write-Host "TESTS FAILED" -ForegroundColor Red; exit 1 }
+
+Write-Host "`n== Known vulnerabilities in requirements.txt (pip-audit) ==" -ForegroundColor Cyan
+& $Python -m pip_audit -r requirements.txt
+if ($LASTEXITCODE -ne 0) { Write-Host "VULNERABLE DEPENDENCIES (or pip-audit missing: pip install -r requirements-dev.txt)" -ForegroundColor Red; exit 1 }
 
 if (Test-Path "data/phoenixmarket.db") {
     Write-Host "`n== Migration rehearsal (copy of data/phoenixmarket.db) ==" -ForegroundColor Cyan

@@ -8,9 +8,9 @@ import hmac
 import re
 import secrets
 from datetime import timedelta, timezone
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
-from flask import current_app, g, redirect, request, session, url_for
+from flask import current_app, g, has_request_context, redirect, request, session, url_for
 from markupsafe import Markup
 
 import services.store as store
@@ -77,10 +77,36 @@ def delivery_label(hours, locale):
     return translate("delivery_within_hours", locale).format(n=hours)
 
 
-def get_current_locale():
-    """Get user's locale from session, default en."""
-    loc = session.get(LOCALE_KEY) or "en"
+def default_locale() -> str:
+    """Language for visitors without a choice (and for search engines): DEFAULT_LOCALE."""
+    loc = current_app.config.get("DEFAULT_LOCALE") or "en"
     return loc if loc in SUPPORTED_LOCALES else "en"
+
+
+def get_current_locale():
+    """?lang= on the URL, else the visitor's saved choice, else the default language.
+
+    The URL parameter makes each language a crawlable address (see
+    localized_url and the hreflang links in base.html).
+    """
+    loc = request.args.get("lang") if has_request_context() else None
+    if loc not in SUPPORTED_LOCALES:
+        loc = session.get(LOCALE_KEY)
+    return loc if loc in SUPPORTED_LOCALES else default_locale()
+
+
+def localized_url(locale: str, keep_query: bool = False, switch: bool = False) -> str:
+    """Absolute URL of the current page in a language: plain for the default
+    language, ?lang=xx otherwise (the canonical form used by hreflang/sitemap).
+
+    switch=True always adds ?lang= (a language switch must override a saved choice).
+    """
+    args = request.args.to_dict(flat=False) if keep_query else {}
+    args.pop("lang", None)
+    if switch or locale != default_locale():
+        args["lang"] = [locale]
+    query = urlencode(args, doseq=True)
+    return request.base_url + (f"?{query}" if query else "")
 
 
 def get_current_currency():

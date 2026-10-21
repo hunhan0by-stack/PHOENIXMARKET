@@ -9,6 +9,7 @@ from flask import current_app, url_for
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
+PILLOW_FORMATS = ("PNG", "JPEG", "WEBP")
 LISTING_IMAGE_SIZE = (1100, 750)
 
 
@@ -38,7 +39,9 @@ def process_listing_image(file_storage):
     if not allowed_image_file(file_storage.filename):
         raise InvalidImageError(file_storage.filename)
     try:
-        with Image.open(file_storage.stream) as src:
+        # Only the decoders we accept: a file named .png that is really, say,
+        # a PSD or FITS image never reaches those (historically buggy) decoders.
+        with Image.open(file_storage.stream, formats=PILLOW_FORMATS) as src:
             img = ImageOps.exif_transpose(src).convert("RGB")
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
         raise InvalidImageError(file_storage.filename) from exc

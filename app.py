@@ -24,6 +24,7 @@ from services.translations import t as translate
 import services.unpaid_orders as unpaid_orders
 from services.uploads import product_image_url
 from services.web import (
+    LOCALE_KEY,
     MIN_PASSWORD_LENGTH,
     SUPPORTED_CURRENCIES,
     SUPPORTED_LOCALES,
@@ -40,6 +41,7 @@ from services.web import (
     get_current_locale,
     is_admin,
     is_bot,
+    localized_url,
     safe_back,
     tr_msg,
     visitor_id,
@@ -106,6 +108,9 @@ app.config["ADMIN_PASSWORD"] = ADMIN_PASSWORD
 DATA_DIR = app_root / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 app.config["DATABASE_PATH"] = os.getenv("DATABASE_PATH", str(DATA_DIR / "phoenixmarket.db"))
+# Language for first-time visitors and search engines ("en" or "tr")
+app.config["DEFAULT_LOCALE"] = (os.getenv("DEFAULT_LOCALE") or "en").strip().lower()
+
 # Daily database copies; default is a "backups" folder next to the database
 app.config["BACKUP_DIR"] = os.getenv("BACKUP_DIR") or None
 
@@ -146,6 +151,7 @@ register_blueprints(app)
 # customer's request can use it too
 app.jinja_env.globals["customer_time"] = customer_time
 app.jinja_env.globals["delivery_label"] = delivery_label
+app.jinja_env.globals["localized_url"] = localized_url
 
 # Static files referenced with asset_url() carry a content hash (?v=…), so
 # browsers may cache them for a year; a changed file gets a new URL.
@@ -234,6 +240,14 @@ if not app.debug:
 @app.before_request
 def assign_request_id():
     g.request_id = secrets.token_hex(4).upper()
+
+
+@app.before_request
+def remember_language_from_url():
+    """Opening a ?lang=xx address (language switch, search result) keeps that language."""
+    lang = request.args.get("lang")
+    if request.method == "GET" and lang in SUPPORTED_LOCALES and session.get(LOCALE_KEY) != lang:
+        session[LOCALE_KEY] = lang
 
 
 # Periodic maintenance rides on incoming requests (Render's health checks keep

@@ -34,6 +34,7 @@ from services.web import (
     SUPPORTED_LOCALES,
     client_ip,
     current_user,
+    default_locale,
     get_current_currency,
     get_current_locale,
     is_admin,
@@ -451,14 +452,29 @@ def sitemap():
         slug = p.get("slug") or str(p["id"])
         lastmod = p["updated_at"].date().isoformat() if p.get("updated_at") else None
         pages.append((f"/product/{slug}", "weekly", "0.8", lastmod))
+    default = default_locale()
+
+    def localized(path, loc):
+        # Same rule as localized_url(): plain for the default language
+        return base_url + path + ("" if loc == default else ("&" if "?" in path else "?") + f"lang={loc}")
+
     xml = ['<?xml version="1.0" encoding="UTF-8"?>']
-    xml.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    xml.append(
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+        'xmlns:xhtml="http://www.w3.org/1999/xhtml">'
+    )
     for path, changefreq, priority, lastmod in pages:
         last = f"<lastmod>{lastmod}</lastmod>" if lastmod else ""
-        xml.append(
-            f"  <url><loc>{escape(base_url + path)}</loc>{last}"
-            f"<changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>"
+        alternates = "".join(
+            f'<xhtml:link rel="alternate" hreflang="{alt}" href="{escape(localized(path, alt))}"/>'
+            for alt in SUPPORTED_LOCALES
         )
+        # One entry per language, each listing all language versions (hreflang)
+        for loc in SUPPORTED_LOCALES:
+            xml.append(
+                f"  <url><loc>{escape(localized(path, loc))}</loc>{last}"
+                f"<changefreq>{changefreq}</changefreq><priority>{priority}</priority>{alternates}</url>"
+            )
     xml.append("</urlset>")
     return "\n".join(xml), 200, {"Content-Type": "application/xml"}
 

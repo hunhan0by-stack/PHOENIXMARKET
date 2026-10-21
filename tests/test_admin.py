@@ -59,6 +59,20 @@ def test_bad_images_are_rejected_and_input_kept(admin, payload, filename):
     assert len(in_app(store.list_all_products)) == before
 
 
+@pytest.mark.parametrize("fmt", ["BMP", "GIF", "TIFF"])
+def test_other_image_formats_disguised_as_png_are_rejected(admin, fmt):
+    """Only the PNG/JPEG/WebP decoders ever run on an upload, whatever its name."""
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (1200, 800), (10, 20, 30)).save(buf, fmt)
+    buf.seek(0)
+    before = len(in_app(store.list_all_products))
+    r = post_listing(admin, name="Disguised", image_file=(buf, "photo.png"))
+    assert "Invalid image" in r.get_data(as_text=True)
+    assert len(in_app(store.list_all_products)) == before
+
+
 @pytest.mark.parametrize("price", ["nan", "-5", "abc", "inf"])
 def test_invalid_prices_are_rejected(admin, price):
     r = post_listing(admin, name=f"Price {price}", base_price=price)
