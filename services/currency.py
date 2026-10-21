@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 
+from services.money import money
 
 SUPPORTED_CURRENCIES = ("TRY", "USD", "EUR")
 DEFAULT_CURRENCY = "USD"
@@ -123,12 +124,12 @@ def convert(amount: float, from_currency: str, to_currency: str) -> float:
     else:
         usd = amount
     if to_cur == "USD":
-        return round(usd, 2)
+        return money(usd)
     if to_cur == "TRY":
-        return round(usd * rates["TRY"], 2)
+        return money(usd * rates["TRY"])
     if to_cur == "EUR":
-        return round(usd * rates["EUR"], 2)
-    return round(usd, 2)
+        return money(usd * rates["EUR"])
+    return money(usd)
 
 
 def format_price(amount, currency: str = None) -> str:

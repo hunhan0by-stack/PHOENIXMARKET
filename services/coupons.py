@@ -5,6 +5,7 @@ currency orders are stored in); the cart converts them for display.
 import re
 from datetime import datetime, timezone
 
+from services.money import money
 import services.store as store
 
 CODE_RE = re.compile(r"^[A-Z0-9_-]{3,32}$")
@@ -30,7 +31,7 @@ def discount_for(coupon: dict, subtotal_usd: float) -> float:
         amount = subtotal_usd * min(float(coupon["value"]), 100.0) / 100.0
     else:
         amount = float(coupon["value"])
-    return round(max(0.0, min(amount, subtotal_usd)), 2)
+    return money(max(0.0, min(amount, subtotal_usd)))
 
 
 def check_coupon(coupon, subtotal_usd: float, now: datetime | None = None) -> None:

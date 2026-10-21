@@ -144,7 +144,9 @@ See `.env.example` for a template.
 ```
 app.py                 configuration, start-up, security headers, error pages
 views/                 route blueprints: shop, account, orders (cart/checkout), admin, api
-services/              business logic and data access (store.py holds all SQL)
+services/              business logic; services/store/ holds all SQL, split by area
+                       (catalog, orders, users, coupons, reviews, support, analytics,
+                       settings) and re-exported as `services.store`
 templates/             Jinja templates (emails in templates/emails/)
 static/                CSS/JS/images
 tests/                 pytest suite

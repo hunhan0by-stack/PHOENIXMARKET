@@ -9,6 +9,7 @@ from flask import session
 
 from services.currency import DEFAULT_CURRENCY, convert
 from services.listing import get_base_currency, get_base_price
+from services.money import money
 import services.store as store
 
 # Upper bound for one cart line, whatever the stock (keeps quantities sane)
@@ -137,10 +138,10 @@ def build_cart_items(cart_data, display_currency: str = None):
         qty = int(qty)
         base_cur = get_base_currency(product)
         price = unit_price(product, variant)
-        unit_usd = round(convert(price, base_cur, "USD"), 2)
-        unit_display = round(convert(price, base_cur, cur), 2)
-        line_usd = round(unit_usd * qty, 2)
-        line_display = round(unit_display * qty, 2)
+        unit_usd = money(convert(price, base_cur, "USD"))
+        unit_display = money(convert(price, base_cur, cur))
+        line_usd = money(unit_usd * qty)
+        line_display = money(unit_display * qty)
         subtotal_usd += line_usd
         subtotal_display += line_display
         available = available_stock(product, variant)
@@ -157,7 +158,7 @@ def build_cart_items(cart_data, display_currency: str = None):
             "available_stock": available,
             "insufficient": qty > available,
         })
-    return items, round(subtotal_usd, 2), round(subtotal_display, 2)
+    return items, money(subtotal_usd), money(subtotal_display)
 
 
 def prune_cart(cart_data: dict, items: list) -> None:

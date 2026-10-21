@@ -4,7 +4,15 @@ Orders: checkout (atomic stock/coupon reservation), status changes, payments, sa
 from datetime import datetime, timedelta, timezone
 
 from services.database import get_db
-from services.store.base import CouponUnavailableError, OrderChangedError, OutOfStockError, PaymentNotAllowedError, _like, _parse_dt
+from services.money import money
+from services.store.base import (
+    CouponUnavailableError,
+    OrderChangedError,
+    OutOfStockError,
+    PaymentNotAllowedError,
+    _like,
+    _parse_dt,
+)
 
 
 def _order_items_for(order_id: int) -> list:
@@ -130,7 +138,7 @@ def create_order(
                 user_id,
                 locale or "en",
                 coupon["code"] if coupon else None,
-                round(float(discount_usd or 0), 2),
+                money(float(discount_usd or 0)),
                 now,
                 now,
                 payment_due_at,
@@ -384,11 +392,11 @@ def sales_report(days: int = 30) -> dict:
         series.append({
             "date": day,
             "orders": int(row["orders"]) if row else 0,
-            "value": round(float(row["value"] or 0), 2) if row else 0.0,
+            "value": money(float(row["value"] or 0)) if row else 0.0,
         })
     orders = sum(d["orders"] for d in series)
-    value = round(sum(d["value"] for d in series), 2)
-    discount = round(sum(float(r["discount"] or 0) for r in per_day.values()), 2)
+    value = money(sum(d["value"] for d in series))
+    discount = money(sum(float(r["discount"] or 0) for r in per_day.values()))
     completed = db.execute(
         """
         SELECT COALESCE(SUM(total_price), 0) AS revenue FROM orders
@@ -427,8 +435,8 @@ def sales_report(days: int = 30) -> dict:
         "max_value": max((d["value"] for d in series), default=0),
         "orders": orders,
         "value": value,
-        "completed_revenue": round(float(completed), 2),
-        "average_order": round(value / orders, 2) if orders else 0.0,
+        "completed_revenue": money(float(completed)),
+        "average_order": money(value / orders) if orders else 0.0,
         "discount": discount,
         "visitors": int(visitors),
         # None ("—") when the visit data cannot support a rate: no visits, or

@@ -33,6 +33,7 @@ from services.cart import (
 import services.coupons as coupons
 import services.legal as legal
 from services.currency import convert, format_price
+from services.money import money
 import services.notifications as notifications
 import services.payments as payments
 from services.ratelimit import RateLimiter
@@ -274,7 +275,7 @@ def checkout():
                 user_email=email,
                 full_name=full_name,
                 notes=notes,
-                total_price=round(subtotal_base - discount_usd, 2),
+                total_price=money(subtotal_base - discount_usd),
                 total_currency="USD",
                 line_items=line_items,
                 user_id=user["id"] if user else None,

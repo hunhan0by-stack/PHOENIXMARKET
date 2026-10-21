@@ -86,7 +86,9 @@ def test_old_page_views_are_deleted_after_retention():
 
 
 def test_row_cap_keeps_the_newest(monkeypatch):
-    monkeypatch.setattr(store, "ANALYTICS_MAX_ENTRIES", 2)
+    import services.store.analytics as analytics
+
+    monkeypatch.setattr(analytics, "ANALYTICS_MAX_ENTRIES", 2)
     ts = datetime.now(timezone.utc).isoformat()
     for ch in "abc":
         insert_visit(ts, ch * 16, "Chrome")

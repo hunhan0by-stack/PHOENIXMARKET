@@ -2,9 +2,10 @@
 Customer accounts: sign up / sign in / sign out, profile, password change and
 order history. Passwords are stored hashed in the users table.
 """
+import json
 import secrets
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import services.notifications as notifications
@@ -190,6 +191,48 @@ def change_password():
         login_customer(store.get_user(user["id"]))
         flash(tr_msg("flash_password_changed"), "success")
     return redirect(url_for("account.profile"))
+
+
+@bp.route("/account/export")
+def export_data():
+    """KVKK right of access: the account's data as a JSON download."""
+    user = current_user()
+    if not user:
+        return redirect(url_for("account.signin"))
+    body = json.dumps(store.export_account_data(user["id"]), ensure_ascii=False, indent=2, default=str)
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": "attachment; filename=phoenixmarket-account-data.json",
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@bp.route("/account/delete", methods=["POST"])
+def delete_account():
+    """KVKK right to erasure: delete the account after confirming the password."""
+    user = current_user()
+    if not user:
+        return redirect(url_for("account.signin"))
+    limit_key = client_ip()
+    wait = signin_limiter.retry_after(limit_key)
+    if wait:
+        flash(tr_msg("flash_too_many_attempts", minutes=(wait + 59) // 60), "error")
+        return redirect(url_for("account.profile"))
+    record = store.get_user(user["id"])
+    if not record or not check_password_hash(record["password_hash"], request.form.get("password", "")):
+        signin_limiter.hit(limit_key)
+        flash(tr_msg("flash_wrong_current_password"), "error")
+        return redirect(url_for("account.profile"))
+    if not request.form.get("confirm_delete"):
+        flash(tr_msg("flash_delete_confirm_required"), "error")
+        return redirect(url_for("account.profile"))
+    store.delete_account(user["id"])
+    logout_customer()
+    flash(tr_msg("flash_account_deleted"), "success")
+    return redirect(url_for("shop.index"))
 
 
 @bp.route("/account/favorites")
