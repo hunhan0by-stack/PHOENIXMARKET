@@ -284,10 +284,15 @@ def checkout():
             session.pop(COUPON_SESSION_KEY, None)
             flash(tr_msg("flash_coupon_used_up"), "error")
             return redirect(url_for("orders.cart"))
+        placed = store.get_order_by_id(order_id)
         try:
-            notifications.send_order_confirmation(store.get_order_by_id(order_id))
+            notifications.send_order_confirmation(placed)
         except Exception:  # noqa: BLE001 - an email problem must never lose the order
             current_app.logger.exception("Order confirmation email failed for order %s", order_id)
+        try:
+            notifications.send_new_order_owner(placed)
+        except Exception:  # noqa: BLE001
+            current_app.logger.exception("New order notification failed for order %s", order_id)
         session["cart"] = {}
         session.pop(COUPON_SESSION_KEY, None)
         session["last_order_id"] = order_id

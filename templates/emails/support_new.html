@@ -1,0 +1,11 @@
+{% extends "emails/_layout.html" %}
+{% block body %}
+  <h1 style="margin:0 0 12px;font-size:18px;color:#f8fafc;">{{ t('email_owner_support_heading').format(id=message.id) }}</h1>
+  <p style="margin:0 0 4px;color:#94a3b8;">{{ t('email_owner_from') }}: <strong style="color:#f8fafc;">{{ message.name }}</strong> &lt;{{ message.email }}&gt;</p>
+  <p style="margin:0 0 4px;color:#94a3b8;">{{ t('email_owner_subject_label') }}: <strong style="color:#f8fafc;">{{ message.subject }}</strong></p>
+  {% if message.order_ref %}<p style="margin:0 0 4px;color:#94a3b8;">{{ t('email_owner_order_label') }}: {{ message.order_ref }}</p>{% endif %}
+  <p style="margin:12px 0;white-space:pre-line;">{{ message.message }}</p>
+  <p style="margin:20px 0 0;">
+    <a href="{{ inbox_url }}" style="display:inline-block;background:#f97316;color:#020617;text-decoration:none;font-weight:bold;padding:10px 20px;border-radius:999px;">{{ t('email_owner_open_inbox') }}</a>
+  </p>
+{% endblock %}

@@ -3,12 +3,14 @@ Request/session helpers shared by the views: locale and currency, translated
 flash messages, the signed-in customer, the admin flag, CSRF tokens and safe
 "go back" redirects.
 """
+import hashlib
+import hmac
 import re
 import secrets
 from datetime import timedelta, timezone
 from urllib.parse import urlparse
 
-from flask import g, redirect, request, session, url_for
+from flask import current_app, g, redirect, request, session, url_for
 from markupsafe import Markup
 
 import services.store as store
@@ -23,6 +25,28 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
 
 CSRF_SESSION_KEY = "_csrf_token"
+
+
+# Crawlers, uptime monitors and scripts: not counted as visitors
+BOT_UA_RE = re.compile(
+    r"bot|crawl|spider|slurp|preview|monitor|uptime|headless|lighthouse|"
+    r"curl|wget|python-|httpx|go-http|java/|okhttp|axios|node-fetch|scrapy",
+    re.IGNORECASE,
+)
+
+
+def is_bot(user_agent: str) -> bool:
+    return not user_agent or bool(BOT_UA_RE.search(user_agent))
+
+
+def visitor_id(ip: str, day: str) -> str:
+    """Pseudonymous visitor id: keyed hash of the IP and the UTC day.
+
+    The IP itself is never stored, and because the day is part of the input
+    the same person cannot be followed from one day to the next.
+    """
+    key = current_app.config["SECRET_KEY"].encode("utf-8")
+    return hmac.new(key, f"{day}|{ip}".encode("utf-8"), hashlib.sha256).hexdigest()[:16]
 
 
 # Turkey keeps UTC+3 all year (no daylight saving since 2016)

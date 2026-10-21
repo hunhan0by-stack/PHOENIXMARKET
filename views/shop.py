@@ -348,8 +348,8 @@ def _contact_form_valid(form: dict) -> bool:
 
 def _notify_shop_owner(message_id: int) -> None:
     """Email the configured support address about a new message (skips placeholders)."""
-    to_address = (store.get_config("site_settings.support_email") or "").strip()
-    if not EMAIL_RE.match(to_address) or to_address.endswith(".example"):
+    to_address = notifications.owner_address()
+    if not to_address:
         return
     try:
         notifications.send_support_notification(store.get_support_message(message_id), to_address)

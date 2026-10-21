@@ -1,12 +1,17 @@
 """
 Customer emails (order confirmation, order updates, password reset), rendered
-from templates/emails/ in the customer's language and sent via services.mailer.
+from templates/emails/ in the customer's language, and notifications for the
+shop owner (new order, new support message) in the language chosen under
+Admin → Settings. All are sent via services.mailer.
 """
 from flask import current_app, render_template, url_for
 
 from services.mailer import send_email
 import services.store as store
 from services.translations import t as translate
+from services.web import EMAIL_RE, SUPPORTED_LOCALES
+
+OWNER_LOCALE_KEY = "site_settings.owner_locale"
 
 
 def _render(name: str, locale: str, **context):
@@ -68,15 +73,49 @@ def notify_back_in_stock(product_id: int) -> int:
     return sent
 
 
+def owner_address():
+    """The shop owner's address from Admin → Settings, or None while it is unset or a placeholder."""
+    to_address = (store.get_config("site_settings.support_email") or "").strip()
+    if not EMAIL_RE.match(to_address) or to_address.endswith(".example"):
+        return None
+    return to_address
+
+
+def owner_locale() -> str:
+    """Language of the owner's notifications (Admin → Settings)."""
+    locale = store.get_config(OWNER_LOCALE_KEY) or "en"
+    return locale if locale in SUPPORTED_LOCALES else "en"
+
+
 def send_support_notification(message: dict, to_address: str) -> int:
-    """Tell the shop owner about a new contact form message (English)."""
+    """Tell the shop owner about a new contact form message."""
+    locale = owner_locale()
     text, html = _render(
         "support_new",
-        "en",
+        locale,
         message=message,
         inbox_url=url_for("admin.message_detail", message_id=message["id"], _external=True),
     )
-    return send_email(to_address, f"New support message: {message['subject']}", text, html, kind="support_new")
+    subject = translate("email_owner_support_subject", locale).format(subject=message["subject"])
+    return send_email(to_address, subject, text, html, kind="support_new")
+
+
+def send_new_order_owner(order: dict):
+    """Tell the shop owner about a new order; outbox id, or None while no owner address is set."""
+    to_address = owner_address()
+    if not to_address:
+        return None
+    locale = owner_locale()
+    text, html = _render(
+        "owner_new_order",
+        locale,
+        order=order,
+        admin_url=url_for("admin.order_detail", order_id=order["id"], _external=True),
+    )
+    subject = translate("email_owner_order_subject", locale).format(
+        id=order["id"], total=f"{order['total_price']:.2f}"
+    )
+    return send_email(to_address, subject, text, html, kind="owner_new_order")
 
 
 def send_support_reply(message: dict) -> int:

@@ -1,6 +1,7 @@
 import hashlib
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from flask import Flask, flash, jsonify, render_template, request, session
@@ -34,8 +35,10 @@ from services.web import (
     get_current_currency,
     get_current_locale,
     is_admin,
+    is_bot,
     safe_back,
     tr_msg,
+    visitor_id,
 )
 from views import register_blueprints
 from views.api import chat_api_key
@@ -118,6 +121,8 @@ with app.app_context():
     store.seed_if_empty(itemsatis_url)
     store.migrate_listing_images_png_to_jpg()
     store.maybe_migrate_analytics_json(DATA_DIR)
+    # Raw IPs / user agents recorded before anonymisation (no-op afterwards)
+    store.anonymize_legacy_visits(visitor_id)
     _persisted = store.load_site_settings(
         itemsatis_url,
         "contact@phoenixmarket.example",
@@ -202,6 +207,10 @@ def housekeeping():
         return
     _housekeeping["next"] = now + HOUSEKEEPING_INTERVAL_SECONDS
     backup.maybe_auto_backup()
+    try:
+        store.purge_old_visits()
+    except Exception:  # noqa: BLE001
+        app.logger.exception("Purging old visits failed")
     if unpaid_orders.payment_window_hours() > 0:
         try:
             unpaid_orders.cancel_overdue_orders()
@@ -223,11 +232,16 @@ def record_visit():
         "/health", "/sitemap.xml", "/robots.txt", "/favicon.ico",
     ):
         return
-    ua = request.user_agent.string if request.user_agent else ""
+    # The raw header: werkzeug's UserAgent object is falsy for real browsers
+    ua = request.headers.get("User-Agent", "")
+    if is_bot(ua):
+        return
     try:
-        store.record_visit(path, client_ip(), ua)
-    except Exception:  # noqa: S110
-        pass
+        # Personal data kept to a minimum: no IP, no full user agent
+        day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        store.record_visit(path, visitor_id(client_ip(), day), store.browser_family(ua))
+    except Exception:  # noqa: BLE001 - analytics never breaks a page
+        app.logger.exception("Recording a visit failed")
 
 
 @app.before_request

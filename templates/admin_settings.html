@@ -31,7 +31,15 @@
       </div>
       <div>
         <label for="f-support-discord" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_discord') }}</label>
-        <input type="text" name="support_discord" value="{{ site_settings.support_discord }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+        <input id="f-support-discord" type="text" name="support_discord" value="{{ site_settings.support_discord }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+      </div>
+      <div>
+        <label for="owner_locale" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_owner_locale') }}</label>
+        <select id="owner_locale" name="owner_locale" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+          <option value="tr" {{ 'selected' if site_settings.owner_locale == 'tr' }}>Türkçe</option>
+          <option value="en" {{ 'selected' if site_settings.owner_locale != 'tr' }}>English</option>
+        </select>
+        <p class="mt-1 text-[11px] text-slate-500">{{ t('adm_owner_locale_hint') }}</p>
       </div>
 
       <div class="pt-4 flex justify-end">

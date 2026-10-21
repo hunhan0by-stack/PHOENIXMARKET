@@ -49,7 +49,8 @@ def test_sales_report_window_and_totals(make_client):
 
 def test_empty_report():
     report = in_app(store.sales_report, 30)
-    assert report["orders"] == 0 and report["average_order"] == 0 and report["conversion"] == 0
+    # No visits recorded: no conversion rate rather than a misleading 0%
+    assert report["orders"] == 0 and report["average_order"] == 0 and report["conversion"] is None
 
 
 def test_dashboard_shows_sales_chart(admin):

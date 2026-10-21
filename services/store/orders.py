@@ -430,7 +430,9 @@ def sales_report(days: int = 30) -> dict:
         "average_order": round(value / orders, 2) if orders else 0.0,
         "discount": discount,
         "visitors": int(visitors),
-        "conversion": round(orders / visitors * 100, 1) if visitors else 0.0,
+        # None ("—") when the visit data cannot support a rate: no visits, or
+        # more orders than visitor-days (e.g. orders older than the kept visits)
+        "conversion": round(orders / visitors * 100, 1) if visitors and orders <= visitors else None,
         "top_products": top_products,
     }
 

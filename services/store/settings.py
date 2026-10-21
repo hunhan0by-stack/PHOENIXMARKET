@@ -127,14 +127,20 @@ def load_site_settings(default_itemsatis: str, default_email: str, default_disco
         "support_discord": get_config(
             "site_settings.support_discord", default_discord
         ),
+        # Language of the owner's own notification emails
+        "owner_locale": get_config("site_settings.owner_locale", "en"),
     }
 
 
-def save_site_settings(itemsatis_url: str, support_email: str, support_discord: str) -> None:
+def save_site_settings(
+    itemsatis_url: str, support_email: str, support_discord: str, owner_locale: str | None = None
+) -> None:
     if itemsatis_url:
         set_config("site_settings.itemsatis_redirect_url", itemsatis_url)
     set_config("site_settings.support_email", support_email)
     set_config("site_settings.support_discord", support_discord)
+    if owner_locale:
+        set_config("site_settings.owner_locale", owner_locale)
 
 
 def migrate_listing_images_png_to_jpg() -> None:

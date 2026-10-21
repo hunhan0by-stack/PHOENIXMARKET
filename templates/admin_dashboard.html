@@ -102,7 +102,7 @@
           (t('adm_order_value'), '$%.2f'|format(sales.value), ''),
           (t('adm_completed_revenue'), '$%.2f'|format(sales.completed_revenue), t('adm_completed_revenue_hint')),
           (t('adm_average_order'), '$%.2f'|format(sales.average_order), ''),
-          (t('adm_conversion'), '%.1f%%'|format(sales.conversion), t('adm_conversion_hint').format(n=sales.visitors)),
+          (t('adm_conversion'), '%.1f%%'|format(sales.conversion) if sales.conversion is not none else '—', t('adm_conversion_hint').format(n=sales.visitors) if sales.conversion is not none else t('adm_conversion_unavailable')),
           (t('adm_discounts_given'), '$%.2f'|format(sales.discount), t('adm_discounts_hint')),
         ] %}
           <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
@@ -204,7 +204,8 @@
 
     {% if analytics %}
     <div class="mt-10">
-      <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('adm_visitor_analytics') }}</h2>
+      <h2 class="text-sm font-semibold text-slate-100">{{ t('adm_visitor_analytics') }}</h2>
+      <p class="mt-1 mb-3 text-[11px] text-slate-500">{{ t('adm_visits_privacy_note') }}</p>
       <div class="grid gap-4 md:grid-cols-3 mb-6">
         <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-4">
           <p class="text-xs text-slate-400">{{ t('adm_total_visitors') }}</p>
@@ -240,8 +241,8 @@
               <tr>
                 <th class="px-3 py-2 text-left">{{ t('adm_time') }}</th>
                 <th class="px-3 py-2 text-left">{{ t('adm_path') }}</th>
-                <th class="px-3 py-2 text-left">{{ t('adm_ip') }}</th>
-                <th class="px-3 py-2 text-left">{{ t('adm_user_agent') }}</th>
+                <th class="px-3 py-2 text-left">{{ t('adm_visitor') }}</th>
+                <th class="px-3 py-2 text-left">{{ t('adm_browser') }}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-800">
@@ -249,7 +250,7 @@
               <tr>
                 <td class="px-3 py-2 text-slate-400">{{ v.ts[:19] if v.ts else '—' }}</td>
                 <td class="px-3 py-2 text-slate-100 font-mono">{{ v.path }}</td>
-                <td class="px-3 py-2 text-slate-300">{{ v.ip }}</td>
+                <td class="px-3 py-2 font-mono text-slate-300">{{ v.visitor }}</td>
                 <td class="px-3 py-2 text-slate-400">{{ v.user_agent_summary }}</td>
               </tr>
               {% else %}

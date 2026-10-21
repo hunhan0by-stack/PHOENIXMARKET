@@ -1,0 +1,9 @@
+{{ t('email_owner_support_heading').format(id=message.id) }}
+
+{{ t('email_owner_from') }}: {{ message.name }} <{{ message.email }}>
+{{ t('email_owner_subject_label') }}: {{ message.subject }}
+{% if message.order_ref %}{{ t('email_owner_order_label') }}: {{ message.order_ref }}
+{% endif %}
+{{ message.message }}
+
+{{ t('email_owner_open_inbox') }}: {{ inbox_url }}

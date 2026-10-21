@@ -31,6 +31,9 @@ def settings():
         itemsatis_url = (request.form.get("itemsatis_redirect_url") or "").strip()
         support_email = (request.form.get("support_email") or "").strip()
         support_discord = (request.form.get("support_discord") or "").strip()
+        owner_locale = request.form.get("owner_locale")
+        if owner_locale not in SUPPORTED_LOCALES:
+            owner_locale = None  # missing or unknown: keep the current language
         if itemsatis_url and not itemsatis_url.startswith(("http://", "https://")):
             flash(tr_msg("flash_invalid_url"), "error")
             return redirect(url_for("admin.settings"))
@@ -44,7 +47,7 @@ def settings():
         merged_discord = support_discord or cur.get("support_discord", "")
         merged_itemsatis = itemsatis_url or cur.get("itemsatis_redirect_url", "")
 
-        store.save_site_settings(merged_itemsatis, merged_email, merged_discord)
+        store.save_site_settings(merged_itemsatis, merged_email, merged_discord, owner_locale)
         if merged_itemsatis:
             current_app.config["ITEMSATIS_REDIRECT_URL"] = merged_itemsatis
 
