@@ -153,3 +153,13 @@ def test_admin_outbox_pages(client, admin):
     detail = admin.html(f"/admin/emails/{email_id}")
     assert "/track/" in detail
     assert client.get("/admin/emails").headers["Location"].endswith("/admin/login")
+
+
+def test_order_emails_keep_dark_design_and_have_preview_text(make_client):
+    place_order(make_client(locale="tr"))
+    [email] = outbox("order_confirmation")
+    html = email["body_html"]
+    assert '<meta name="color-scheme" content="dark">' in html
+    order_id = in_app(store.list_orders_admin)[0]["id"]
+    assert f"Sipariş #{order_id}: ödeme bilgileri ve takip bağlantınız" in html
+    assert "display:none" in html.split("Sipariş #", 1)[0][-200:]  # preview line is hidden

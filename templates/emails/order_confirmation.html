@@ -1,4 +1,5 @@
 {% extends "emails/_layout.html" %}
+{% block preheader %}{{ t('email_preheader_order').format(id=order.id) }}{% endblock %}
 {% block body %}
   <h1 style="margin:0 0 12px;font-size:20px;color:#f8fafc;">{{ t('order_confirmation_heading') }}</h1>
   <p style="margin:0 0 16px;color:#cbd5e1;">{{ t('email_order_intro') }}</p>

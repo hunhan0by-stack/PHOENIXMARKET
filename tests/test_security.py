@@ -103,3 +103,17 @@ def test_sign_out_controls_are_forms(client, admin):
         assert 'href="/signout"' not in html and 'href="/admin/logout"' not in html
     assert 'action="/signout"' in client.html("/account")
     assert 'action="/admin/logout"' in admin.html("/admin/dashboard")
+
+
+def test_static_assets_are_versioned_and_cached(client):
+    html = client.html("/")
+    for asset in ("css/app.css", "js/app.js", "js/chat.js", "images/logo-64.png"):
+        url = re.search(rf'"(/static/{re.escape(asset)}\?v=[0-9a-f]{{10}})"', html)
+        assert url, asset
+        r = client.get(url.group(1))
+        assert r.status_code == 200
+        assert r.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+    # Without a version the browser revalidates daily
+    assert client.get("/static/images/canva.jpg").headers["Cache-Control"] == "public, max-age=86400"
+    # Pages themselves are not cached as static files
+    assert "immutable" not in (client.get("/").headers.get("Cache-Control") or "")

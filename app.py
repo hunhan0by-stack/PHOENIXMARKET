@@ -147,11 +147,27 @@ register_blueprints(app)
 app.jinja_env.globals["customer_time"] = customer_time
 app.jinja_env.globals["delivery_label"] = delivery_label
 
-# Cache-busting token for the compiled stylesheet (changes whenever it is rebuilt)
-_css_path = app_root / "static" / "css" / "app.css"
-ASSET_VERSION = (
-    hashlib.sha256(_css_path.read_bytes()).hexdigest()[:10] if _css_path.exists() else "dev"
-)
+# Static files referenced with asset_url() carry a content hash (?v=…), so
+# browsers may cache them for a year; a changed file gets a new URL.
+_asset_hashes: dict = {}
+STATIC_IMMUTABLE = "public, max-age=31536000, immutable"
+STATIC_DEFAULT = "public, max-age=86400"
+
+
+def asset_url(filename: str) -> str:
+    path = app_root / "static" / filename
+    try:
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        return url_for("static", filename=filename)
+    cached = _asset_hashes.get(filename)
+    if not cached or cached[0] != mtime:
+        cached = (mtime, hashlib.sha256(path.read_bytes()).hexdigest()[:10])
+        _asset_hashes[filename] = cached
+    return url_for("static", filename=filename, v=cached[1])
+
+
+app.jinja_env.globals["asset_url"] = asset_url
 
 
 @app.context_processor
@@ -294,6 +310,9 @@ def csrf_protect():
 def security_headers(response):
     if g.get("request_id"):
         response.headers.setdefault("X-Request-ID", g.request_id)
+    if request.path.startswith("/static/") and response.status_code in (200, 304):
+        # Versioned URLs never change content; others are revalidated daily
+        response.headers["Cache-Control"] = STATIC_IMMUTABLE if request.args.get("v") else STATIC_DEFAULT
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
