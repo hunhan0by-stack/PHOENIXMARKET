@@ -5,6 +5,7 @@ import math
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 
+import services.audit as audit
 import services.delivery as delivery
 import services.order_fields as order_fields
 import services.store as store
@@ -173,7 +174,8 @@ def new_listing():
         data["image_path"] = image_path or ""
         data["slug"] = unique_slug(data["name"], store.list_existing_slugs())
         data["owner"] = current_app.config["ADMIN_USERNAME"] or "admin"
-        store.create_product(data)
+        listing_id = store.create_product(data)
+        audit.admin_event("listing_created", f"listing #{listing_id}")
         flash(tr_msg("flash_listing_created"), "success")
         return redirect(url_for("admin.listings"))
 
@@ -240,6 +242,7 @@ def edit_listing(product_id):
                 data["name"], store.list_existing_slugs(product_id)
             )
         store.update_product(product_id, data)
+        audit.admin_event("listing_updated", f"listing #{product_id}")
         flash(tr_msg("flash_listing_updated"), "success")
         notify_if_back_in_stock(product_id, product.get("stock") or 0)
         return redirect(url_for("admin.listings"))
@@ -312,6 +315,7 @@ def add_package(product_id):
         flash(tr_msg(problem), "error")
         return redirect(packages_url(product_id))
     store.create_variant(product_id, **data)
+    audit.admin_event("package_saved", f"listing #{product_id}: {data['name']}")
     flash(tr_msg("flash_package_saved"), "success")
     notify_if_back_in_stock(product_id, product.get("stock") or 0)
     return redirect(packages_url(product_id))
@@ -328,6 +332,7 @@ def update_package(product_id, variant_id):
         flash(tr_msg(problem), "error")
         return redirect(packages_url(product_id))
     store.update_variant(variant_id, **data)
+    audit.admin_event("package_saved", f"listing #{product_id} package #{variant_id}")
     flash(tr_msg("flash_package_saved"), "success")
     notify_if_back_in_stock(product_id, product.get("stock") or 0)
     return redirect(packages_url(product_id))
@@ -341,6 +346,7 @@ def delete_package(product_id, variant_id):
         return redirect(packages_url(product_id))
     # Past orders keep the package name; only the purchasable option goes away
     store.delete_variant(variant_id)
+    audit.admin_event("package_deleted", f"listing #{product_id} package #{variant_id}")
     flash(tr_msg("flash_package_deleted"), "info")
     notify_if_back_in_stock(product_id, product.get("stock") or 0)
     return redirect(packages_url(product_id))
@@ -371,6 +377,9 @@ def add_codes(product_id):
         flash(tr_msg(problem, max=delivery.CODES_PER_UPLOAD, length=delivery.CODE_MAX), "error")
         return redirect(codes_url(product_id))
     added = store.add_codes(product_id, variant_id, codes)
+    audit.admin_event(
+        "codes_added", f"listing #{product_id}" + (f" package #{variant_id}" if variant_id else "") + f": {added}"
+    )
     flash(tr_msg("flash_codes_added", n=added, skipped=len(codes) - added), "success")
     notify_if_back_in_stock(product_id, product.get("stock") or 0)
     return redirect(codes_url(product_id))
@@ -379,6 +388,7 @@ def add_codes(product_id):
 @bp.route("/admin/listings/<int:product_id>/codes/<int:code_id>/delete", methods=["POST"])
 def delete_code(product_id, code_id):
     if store.delete_code(product_id, code_id):
+        audit.admin_event("code_deleted", f"listing #{product_id}, code #{code_id}")
         flash(tr_msg("flash_code_deleted"), "info")
     return redirect(codes_url(product_id))
 
@@ -392,6 +402,7 @@ def delete_listing(product_id):
         return redirect(url_for("admin.listings"))
 
     store.delete_product(product_id)
+    audit.admin_event("listing_deleted", f"listing #{product_id}")
     flash(tr_msg("flash_listing_deleted"), "info")
     return redirect(url_for("admin.listings"))
 

@@ -6,6 +6,7 @@ import io
 
 from flask import current_app, flash, redirect, render_template, request, Response, url_for
 
+import services.audit as audit
 import services.delivery as delivery
 import services.notifications as notifications
 from services.pagination import Page
@@ -117,6 +118,8 @@ def order_detail(order_id):
             flash(tr_msg("flash_order_changed_meanwhile"), "error")
             return redirect(url_for("admin.order_detail", order_id=order_id))
         flash(tr_msg("flash_order_updated"), "success")
+        if status != order["fulfillment_status"]:
+            audit.admin_event("order_status_changed", f"order #{order_id}: {order['fulfillment_status']} → {status}")
         if status == "cancelled" and order["fulfillment_status"] != "cancelled":
             for product_id in {li["product_id"] for li in order["line_items"]}:
                 notify_back_in_stock_safely(product_id)
@@ -154,6 +157,7 @@ def deliver_order(order_id):
         flash(tr_msg("flash_delivery_invalid", max=delivery.BODY_MAX), "error")
         return redirect(back)
     store.add_delivery(order_id, body, delivery.retention_days())
+    audit.admin_event("order_delivered", f"order #{order_id}")  # never the delivered details
     flash(tr_msg("flash_delivery_saved"), "success")
     if request.form.get("complete") and not delivery.mark_completed(order):
         flash(tr_msg("flash_order_changed_meanwhile"), "error")
@@ -180,6 +184,7 @@ def confirm_payment(order_id):
     except store.OrderChangedError:
         flash(tr_msg("flash_order_changed_meanwhile"), "error")
         return redirect(url_for("admin.order_detail", order_id=order_id))
+    audit.admin_event("payment_confirmed", f"order #{order_id}")
     flash(tr_msg("flash_payment_recorded"), "success")
     notify = bool(request.form.get("notify_customer"))
     if changes and notify:
@@ -201,6 +206,7 @@ def confirm_payment(order_id):
 @bp.route("/admin/orders/<int:order_id>/payment/undo", methods=["POST"])
 def undo_payment(order_id):
     if store.undo_payment(order_id):
+        audit.admin_event("payment_undone", f"order #{order_id}")
         flash(tr_msg("flash_payment_undone"), "success")
         if store.count_codes_for_order(order_id):
             # Codes the customer may already have seen cannot be taken back

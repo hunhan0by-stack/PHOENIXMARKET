@@ -5,6 +5,7 @@ import sqlite3
 
 from flask import abort, current_app, flash, redirect, render_template, request, send_file, url_for
 
+import services.audit as audit
 import services.backup as backup
 import services.legal as legal
 import services.store as store
@@ -26,6 +27,7 @@ def content():
         }
         if updates or tr_updates:
             store.save_site_content(updates, tr_updates)
+            audit.admin_event("site_content_changed")
         flash(tr_msg("flash_content_updated"), "success")
         return redirect(url_for("admin.content"))
     # Explicit languages: the page's own site_content follows the admin's UI language
@@ -62,6 +64,8 @@ def settings():
         store.save_site_settings(merged_itemsatis, merged_email, merged_discord, owner_locale)
         if merged_itemsatis:
             current_app.config["ITEMSATIS_REDIRECT_URL"] = merged_itemsatis
+        # The payment link decides where customers send money: worth an entry
+        audit.admin_event("settings_changed")
 
         flash(tr_msg("flash_settings_updated"), "success")
         return redirect(url_for("admin.settings"))
@@ -82,12 +86,15 @@ def legal_settings():
         {field: request.form.get(f"seller_{field}", "") for field in legal.SELLER_FIELDS}
     )
     legal.set_texts_reviewed(bool(request.form.get("texts_reviewed")))
+    audit.admin_event("legal_settings_changed")
     flash(tr_msg("flash_settings_updated"), "success")
     return redirect(url_for("admin.settings") + "#legal")
 
 
 def send_backup(path):
     backup.mark_downloaded()
+    # A backup holds every customer's data: each download is recorded
+    audit.admin_event("backup_downloaded", path.name)
     return send_file(
         path,
         mimetype="application/vnd.sqlite3",

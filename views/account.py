@@ -8,6 +8,7 @@ import secrets
 from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import services.audit as audit
 import services.notifications as notifications
 from services.ratelimit import RateLimiter
 import services.store as store
@@ -200,6 +201,7 @@ def export_data():
     if not user:
         return redirect(url_for("account.signin"))
     body = json.dumps(store.export_account_data(user["id"]), ensure_ascii=False, indent=2, default=str)
+    audit.customer_event("account_exported", user["id"])
     return Response(
         body,
         mimetype="application/json",
@@ -230,6 +232,7 @@ def delete_account():
         flash(tr_msg("flash_delete_confirm_required"), "error")
         return redirect(url_for("account.profile"))
     store.delete_account(user["id"])
+    audit.customer_event("account_deleted", user["id"])
     logout_customer()
     flash(tr_msg("flash_account_deleted"), "success")
     return redirect(url_for("shop.index"))

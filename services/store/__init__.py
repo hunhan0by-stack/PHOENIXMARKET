@@ -12,6 +12,7 @@ modules: `import services.store as store` then `store.get_product(...)`.
     support    Contact form messages with their reply history, and the email outbox.
     analytics  Privacy-friendly page-view statistics (no IPs, daily visitor ids, 90-day retention).
     privacy    KVKK self-service: account data export and account deletion.
+    security   Security audit log (admin sign-ins, payments, deliveries, code stock, backups…).
     settings   Key/value configuration: editable site texts (EN/TR), site settings, first-run seed.
 """
 from services.database import get_db  # noqa: F401  (store.get_db() is used widely)
@@ -140,6 +141,10 @@ from services.store.support import (  # noqa: F401
     save_support_reply,
     set_support_status,
     support_customer_context,
+)
+from services.store.security import (  # noqa: F401
+    list_security_events,
+    record_security_event,
 )
 from services.store.analytics import (  # noqa: F401
     ANALYTICS_MAX_ENTRIES,

@@ -6,6 +6,7 @@ import time
 
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 
+import services.audit as audit
 import services.backup as backup
 import services.legal as legal
 import services.store as store
@@ -16,6 +17,7 @@ from views.admin.base import admin_login_limiter, bp
 # Password accepted, waiting for the authenticator code (time it was accepted)
 PENDING_2FA_KEY = "admin_2fa_pending"
 PENDING_2FA_SECONDS = 5 * 60
+SECURITY_EVENTS_SHOWN = 200
 
 
 @bp.route("/admin/login", methods=["GET", "POST"])
@@ -45,6 +47,9 @@ def login():
             admin_login_limiter.reset(limit_key)
             return sign_in_admin()
         admin_login_limiter.hit(limit_key)
+        # The attempted username is not recorded (it may be a mistyped password)
+        audit.admin_event("admin_login_failed")
+        current_app.logger.warning("Failed admin sign-in from %s", limit_key)
         flash(tr_msg("flash_admin_invalid"), "error")
     return render_template("admin_login.html")
 
@@ -53,6 +58,7 @@ def sign_in_admin():
     # Single-owner admin; kept separate from any customer session
     session.pop(PENDING_2FA_KEY, None)
     login_admin()
+    audit.admin_event("admin_login", "with two-step code" if totp.admin_enabled() else "password only")
     flash(tr_msg("flash_admin_login_ok"), "success")
     return redirect(url_for("admin.dashboard"))
 
@@ -75,6 +81,8 @@ def login_verify():
             admin_login_limiter.reset(limit_key)
             return sign_in_admin()
         admin_login_limiter.hit(limit_key)
+        audit.admin_event("admin_2fa_failed")
+        current_app.logger.warning("Failed admin two-step code from %s", limit_key)
         flash(tr_msg("flash_admin_2fa_invalid"), "error")
     return render_template("admin_login_verify.html")
 
@@ -84,6 +92,8 @@ def logout():
     # As with customer sign-out: only a CSRF-checked POST signs out
     if request.method != "POST":
         return redirect(url_for("admin.dashboard") if is_admin() else url_for("shop.index"))
+    if is_admin():
+        audit.admin_event("admin_logout")
     logout_admin()
     u = session.get("user") or {}
     if u.get("role") == "admin":
@@ -134,6 +144,7 @@ def security():
         enabled=secret is None,
         secret=secret,
         qr=totp.qr_svg(uri) if uri else None,
+        events=store.list_security_events(SECURITY_EVENTS_SHOWN),
     )
 
 
@@ -148,6 +159,7 @@ def enable_two_step():
     totp.enable_admin(secret)
     # Every other admin session (e.g. a stolen cookie) now needs the code too
     refresh_admin_epoch()
+    audit.admin_event("admin_2fa_enabled")
     flash(tr_msg("flash_admin_2fa_enabled"), "success")
     return redirect(url_for("admin.security"))
 
@@ -160,5 +172,6 @@ def disable_two_step():
             return redirect(url_for("admin.security"))
         totp.disable_admin()
         refresh_admin_epoch()
+        audit.admin_event("admin_2fa_disabled")
         flash(tr_msg("flash_admin_2fa_disabled"), "info")
     return redirect(url_for("admin.security"))

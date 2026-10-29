@@ -277,6 +277,21 @@ def init_schema():
 
         CREATE INDEX IF NOT EXISTS idx_delivery_codes_pool ON delivery_codes(product_id, variant_id, order_id);
         CREATE INDEX IF NOT EXISTS idx_delivery_codes_order ON delivery_codes(order_id);
+
+        -- Security audit log: admin sign-ins, two-step changes, payments,
+        -- deliveries, code stock, backups, settings, customer data requests.
+        -- detail never holds secrets (passwords, codes, tokens, TOTP secrets);
+        -- ip is recorded for admin actions and failed admin sign-ins only.
+        CREATE TABLE IF NOT EXISTS security_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            detail TEXT NOT NULL DEFAULT '',
+            ip TEXT,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at);
         """
     )
     # Columns added after the first release; ALTER keeps existing databases working.

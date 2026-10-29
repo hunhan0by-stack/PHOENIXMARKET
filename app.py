@@ -11,6 +11,7 @@ from flask.logging import default_handler
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+import services.audit as audit
 import services.backup as backup
 import services.config as config_checks
 from services.currency import format_price
@@ -334,6 +335,7 @@ def backup_command():
 def disable_admin_2fa_command():
     """Turn off the admin's two-step sign-in (lost phone): flask --app app disable-admin-2fa"""
     totp.disable_admin()
+    audit.system_event("admin_2fa_disabled", "command line")
     print("Two-step sign-in for the admin is now off; set it up again under Admin → Settings.")
 
 

@@ -9,6 +9,7 @@ admin confirms the payment.
 """
 from flask import current_app
 
+import services.audit as audit
 import services.notifications as notifications
 import services.store as store
 from services.translations import t as translate
@@ -64,7 +65,9 @@ def auto_deliver(order_id: int, notify: bool) -> tuple:
         # Internal timeline note in the language of the owner's notifications
         note = translate("note_auto_delivery_short", notifications.owner_locale())
         store.add_order_internal_note(order_id, note.format(name=result["name"]))
+        audit.admin_event("order_auto_delivery_short", f"order #{order_id}")
         return "flash_auto_delivery_short", {"name": result["name"]}
+    audit.admin_event("order_auto_delivered", f"order #{order_id}")
     if result["complete"]:
         mark_completed(store.get_order_by_id(order_id))
     if notify:

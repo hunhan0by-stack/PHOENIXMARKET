@@ -50,6 +50,26 @@
         <p class="mt-4 text-[11px] text-slate-500">{{ t('adm_2fa_lost_phone') }}</p>
       </section>
     {% endif %}
+
+    <section id="events" class="mt-12 scroll-mt-6 border-t border-slate-800 pt-8 text-sm">
+      <h2 class="text-lg font-semibold text-slate-50">{{ t('adm_security_events') }}</h2>
+      <p class="mt-2 text-xs text-slate-400">{{ t('adm_security_events_intro') }}</p>
+      {% if events %}
+        <ul class="mt-4 space-y-2 text-xs">
+          {% for e in events %}
+            <li class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-800 bg-slate-950/80 px-3 py-2">
+              <span>
+                <span class="{{ 'text-red-300' if e.event.endswith('_failed') else 'text-slate-100' }}">{{ t('sec_event_' ~ e.event) }}</span>
+                {% if e.detail %}<span class="text-slate-400">· {{ e.detail }}</span>{% endif %}
+              </span>
+              <span class="text-[11px] text-slate-500">{{ e.actor }}{% if e.ip %} · {{ e.ip }}{% endif %} · {{ e.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="mt-4 rounded-xl border border-dashed border-slate-700 px-4 py-3 text-xs text-slate-500">{{ t('adm_security_events_empty') }}</p>
+      {% endif %}
+    </section>
   </div>
 </section>
 {% endblock %}
