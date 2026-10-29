@@ -9,7 +9,7 @@ so guest orders that merely use the same address are never handed out.
 from datetime import datetime, timezone
 
 from services.database import get_db
-from services.store.deliveries import list_deliveries
+from services.store.deliveries import clear_delivered_codes, list_deliveries
 from services.store.orders import list_orders_for_user
 
 
@@ -90,6 +90,7 @@ def delete_account(user_id: int) -> bool:
             """,
             (now, user_id),
         )
+        clear_delivered_codes(db)
         db.execute("UPDATE orders SET user_id = NULL WHERE user_id = ?", (user_id,))
         db.execute("UPDATE support_messages SET user_id = NULL WHERE user_id = ?", (user_id,))
         deleted = db.execute("DELETE FROM users WHERE id = ?", (user_id,)).rowcount

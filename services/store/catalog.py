@@ -164,6 +164,8 @@ def update_variant(
 def delete_variant(variant_id: int) -> None:
     db = get_db()
     db.execute("DELETE FROM product_variants WHERE id = ?", (variant_id,))
+    # Its unused code stock can no longer be sold (handed-out codes stay with their orders)
+    db.execute("DELETE FROM delivery_codes WHERE variant_id = ? AND order_id IS NULL", (variant_id,))
     db.commit()
 
 

@@ -1,10 +1,11 @@
 """
-Listings, their packages (1K / 5K / 10K …) and categories.
+Listings, their packages (1K / 5K / 10K …), code stock for automatic delivery, and categories.
 """
 import math
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 
+import services.delivery as delivery
 import services.order_fields as order_fields
 import services.store as store
 from services.store import unique_slug
@@ -201,6 +202,8 @@ def render_listing_form(product: dict, **extra):
         product=product,
         packages=store.list_variants(product["id"]),
         categories=store.list_categories(),
+        code_stock=store.list_code_stock(product["id"]),
+        codes_per_upload=delivery.CODES_PER_UPLOAD,
         **extra,
     )
 
@@ -341,6 +344,43 @@ def delete_package(product_id, variant_id):
     flash(tr_msg("flash_package_deleted"), "info")
     notify_if_back_in_stock(product_id, product.get("stock") or 0)
     return redirect(packages_url(product_id))
+
+
+def codes_url(product_id: int) -> str:
+    return url_for("admin.edit_listing", product_id=product_id) + "#codes"
+
+
+@bp.route("/admin/listings/<int:product_id>/codes", methods=["POST"])
+def add_codes(product_id):
+    """Upload codes for automatic delivery (one per line) to the listing or one of its packages."""
+    product = store.get_product(product_id)
+    if not product:
+        flash(tr_msg("flash_listing_not_found"), "error")
+        return redirect(url_for("admin.listings"))
+    variant_id = request.form.get("variant_id", type=int)
+    if variant_id:
+        if not listing_package(product_id, variant_id)[0]:
+            flash(tr_msg("flash_package_not_found"), "error")
+            return redirect(codes_url(product_id))
+    elif product["has_variants"]:
+        # A listing sold per package never sells its own codes
+        flash(tr_msg("flash_package_not_found"), "error")
+        return redirect(codes_url(product_id))
+    codes, problem = delivery.parse_codes(request.form.get("codes"))
+    if problem:
+        flash(tr_msg(problem, max=delivery.CODES_PER_UPLOAD, length=delivery.CODE_MAX), "error")
+        return redirect(codes_url(product_id))
+    added = store.add_codes(product_id, variant_id, codes)
+    flash(tr_msg("flash_codes_added", n=added, skipped=len(codes) - added), "success")
+    notify_if_back_in_stock(product_id, product.get("stock") or 0)
+    return redirect(codes_url(product_id))
+
+
+@bp.route("/admin/listings/<int:product_id>/codes/<int:code_id>/delete", methods=["POST"])
+def delete_code(product_id, code_id):
+    if store.delete_code(product_id, code_id):
+        flash(tr_msg("flash_code_deleted"), "info")
+    return redirect(codes_url(product_id))
 
 
 @bp.route("/admin/delete-listing/<int:product_id>", methods=["POST"])

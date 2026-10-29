@@ -5,7 +5,7 @@ modules: `import services.store as store` then `store.get_product(...)`.
     base       shared helpers and errors
     catalog    Listings, packages (variants) and categories; favourites and back-in-stock alerts.
     orders     Orders: checkout (atomic stock/coupon reservation), status changes, payments, sales report.
-    deliveries What customers receive (shown on the tracking page only, cleared after retention).
+    deliveries What customers receive (tracking page only, cleared after retention) and code stock.
     users      Customer accounts and single-use password reset tokens (only hashes stored).
     coupons    Discount codes.
     reviews    Product reviews by customers with a completed order, and their moderation.
@@ -77,7 +77,12 @@ from services.store.orders import (  # noqa: F401
     update_order_fulfillment,
 )
 from services.store.deliveries import (  # noqa: F401
+    add_codes,
     add_delivery,
+    count_codes_for_order,
+    delete_code,
+    deliver_from_code_stock,
+    list_code_stock,
     list_deliveries,
     purge_expired_deliveries,
 )

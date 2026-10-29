@@ -261,6 +261,22 @@ def init_schema():
 
         CREATE INDEX IF NOT EXISTS idx_order_deliveries_order ON order_deliveries(order_id);
         CREATE INDEX IF NOT EXISTS idx_order_deliveries_purge ON order_deliveries(purged_at, purge_at);
+
+        -- Code stock for automatic delivery: codes / licence keys of a listing
+        -- (variant_id NULL) or of one of its packages. order_id is set when a
+        -- paid order takes the code; code is cleared with that delivery.
+        CREATE TABLE IF NOT EXISTS delivery_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            variant_id INTEGER,
+            code TEXT,
+            created_at TEXT NOT NULL,
+            order_id INTEGER REFERENCES orders(id),
+            assigned_at TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_delivery_codes_pool ON delivery_codes(product_id, variant_id, order_id);
+        CREATE INDEX IF NOT EXISTS idx_delivery_codes_order ON delivery_codes(order_id);
         """
     )
     # Columns added after the first release; ALTER keeps existing databases working.

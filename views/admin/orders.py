@@ -155,17 +155,8 @@ def deliver_order(order_id):
         return redirect(back)
     store.add_delivery(order_id, body, delivery.retention_days())
     flash(tr_msg("flash_delivery_saved"), "success")
-    if request.form.get("complete") and order["fulfillment_status"] != "completed":
-        try:
-            store.update_order_fulfillment(
-                order_id,
-                fulfillment_status="completed",
-                tracking_number=order["tracking_number"],
-                carrier_note=order["carrier_note"],
-                expected_status=order["fulfillment_status"],
-            )
-        except (store.OrderChangedError, store.OutOfStockError):
-            flash(tr_msg("flash_order_changed_meanwhile"), "error")
+    if request.form.get("complete") and not delivery.mark_completed(order):
+        flash(tr_msg("flash_order_changed_meanwhile"), "error")
     if request.form.get("notify_customer"):
         try:
             notifications.send_delivery_ready(store.get_order_by_id(order_id))
@@ -190,12 +181,20 @@ def confirm_payment(order_id):
         flash(tr_msg("flash_order_changed_meanwhile"), "error")
         return redirect(url_for("admin.order_detail", order_id=order_id))
     flash(tr_msg("flash_payment_recorded"), "success")
-    if changes and request.form.get("notify_customer"):
+    notify = bool(request.form.get("notify_customer"))
+    if changes and notify:
         try:
             notifications.send_order_update(store.get_order_by_id(order_id), changes)
             flash(tr_msg("flash_customer_notified"), "info")
         except Exception:  # noqa: BLE001 - the payment is already recorded
             current_app.logger.exception("Payment email failed for order %s", order_id)
+    try:
+        message, params = delivery.auto_deliver(order_id, notify)
+    except Exception:  # noqa: BLE001 - the payment is already recorded
+        current_app.logger.exception("Automatic delivery failed for order %s", order_id)
+        message, params = "flash_auto_delivery_failed", {}
+    if message:
+        flash(tr_msg(message, **params), "error" if message.endswith(("_short", "_failed")) else "success")
     return redirect(url_for("admin.order_detail", order_id=order_id))
 
 
@@ -203,6 +202,9 @@ def confirm_payment(order_id):
 def undo_payment(order_id):
     if store.undo_payment(order_id):
         flash(tr_msg("flash_payment_undone"), "success")
+        if store.count_codes_for_order(order_id):
+            # Codes the customer may already have seen cannot be taken back
+            flash(tr_msg("flash_payment_undone_codes_kept"), "info")
     return redirect(url_for("admin.order_detail", order_id=order_id))
 
 
