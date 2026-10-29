@@ -245,6 +245,22 @@ def init_schema():
             used_at TEXT,
             created_at TEXT NOT NULL
         );
+
+        -- What the customer receives for an order (account details, codes),
+        -- shown only on the order's tracking page and never emailed. body is
+        -- cleared at purge_at (purged_at set); source is manual or auto.
+        CREATE TABLE IF NOT EXISTS order_deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+            body TEXT,
+            source TEXT NOT NULL DEFAULT 'manual',
+            created_at TEXT NOT NULL,
+            purge_at TEXT NOT NULL,
+            purged_at TEXT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_order_deliveries_order ON order_deliveries(order_id);
+        CREATE INDEX IF NOT EXISTS idx_order_deliveries_purge ON order_deliveries(purged_at, purge_at);
         """
     )
     # Columns added after the first release; ALTER keeps existing databases working.

@@ -52,6 +52,19 @@ def send_order_update(order: dict, changes: list) -> int:
     return send_email(order["user_email"], subject, text, html, kind="order_update")
 
 
+def send_delivery_ready(order: dict) -> int:
+    """The order was delivered: a link to the tracking page, never the delivered details."""
+    locale = order.get("locale") or "en"
+    text, html = _render(
+        "delivery_ready",
+        locale,
+        order=order,
+        track_url=url_for("orders.track", token=order["tracking_token"], _external=True),
+    )
+    subject = translate("email_delivery_subject", locale).format(id=order["id"])
+    return send_email(order["user_email"], subject, text, html, kind="delivery_ready")
+
+
 def send_password_reset(to_address: str, reset_url: str, locale: str) -> int:
     text, html = _render("password_reset", locale, reset_url=reset_url)
     subject = translate("email_reset_subject", locale)

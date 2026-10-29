@@ -44,6 +44,45 @@
       {% endif %}
     </section>
 
+    <section id="delivery" class="mt-8 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm">
+      <h2 class="text-sm font-semibold text-slate-100">{{ t('delivery_title') }}</h2>
+      {% for d in deliveries %}
+        <div class="mt-3 rounded-lg border border-slate-800 bg-slate-900/60 px-3 py-2">
+          <p class="text-[11px] text-slate-500">
+            {{ d.created_at.strftime('%Y-%m-%d %H:%M UTC') }} · {{ t('adm_delivery_source_' ~ d.source) }}
+            {% if d.body is not none %}· {{ t('adm_delivery_purge_at').format(when=d.purge_at.strftime('%Y-%m-%d %H:%M UTC')) }}{% endif %}
+          </p>
+          {% if d.body is not none %}
+            <pre class="mt-1 whitespace-pre-wrap break-all font-mono text-xs text-slate-100">{{ d.body }}</pre>
+          {% else %}
+            <p class="mt-1 text-xs text-slate-400">{{ t('delivery_purged') }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+      {% if order.fulfillment_status == 'cancelled' %}
+        <p class="mt-2 text-xs text-slate-400">{{ t('adm_delivery_cancelled_hint') }}</p>
+      {% else %}
+        <form method="post" action="{{ url_for('admin.deliver_order', order_id=order.id) }}" class="mt-3 space-y-3">
+          {{ csrf_field() }}
+          <textarea name="delivery" aria-label="{{ t('delivery_title') }}" rows="4" maxlength="{{ delivery_max }}" required class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-slate-100 focus:border-brandOrange focus:outline-none" placeholder="{{ t('adm_delivery_placeholder') }}"></textarea>
+          <p class="text-[11px] text-slate-500">{{ t('adm_delivery_hint').format(days=delivery_retention_days) }}</p>
+          <div class="flex flex-wrap items-center gap-4">
+            {% if order.fulfillment_status != 'completed' %}
+            <label class="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" name="complete" value="1" checked class="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-orange-500">
+              {{ t('adm_delivery_complete') }}
+            </label>
+            {% endif %}
+            <label class="flex items-center gap-2 text-xs text-slate-300">
+              <input type="checkbox" name="notify_customer" value="1" checked class="h-4 w-4 rounded border-slate-600 bg-slate-900 accent-orange-500">
+              {{ t('adm_notify_customer') }}
+            </label>
+            <button type="submit" class="rounded-full bg-emerald-500 px-5 py-2 text-xs font-semibold text-black hover:bg-emerald-400">{{ t('adm_delivery_send') }}</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+
     <div class="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm">
         {{ csrf_field() }}
@@ -57,10 +96,13 @@
             {% endfor %}
           </select>
         </div>
+        {% if order.tracking_number %}
+        {# Shipping-era field: only shown for orders that already have one #}
         <div>
           <label for="f-tracking-number" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_tracking_number') }}</label>
           <input id="f-tracking-number" type="text" name="tracking_number" value="{{ order.tracking_number or '' }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" placeholder="{{ t('adm_optional') }}">
         </div>
+        {% endif %}
         <div>
           <label for="f-carrier-note" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_note_to_customer') }}</label>
           <textarea id="f-carrier-note" name="carrier_note" rows="3" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100" placeholder="{{ t('adm_note_to_customer_hint') }}">{{ order.carrier_note or '' }}</textarea>

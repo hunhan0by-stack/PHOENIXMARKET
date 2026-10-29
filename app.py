@@ -13,6 +13,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import services.backup as backup
 from services.currency import format_price
+import services.delivery as delivery
 from services.database import init_app as register_db, init_schema
 from services.listing import (
     get_display_price,
@@ -123,6 +124,15 @@ try:
 except ValueError:
     app.logger.warning("PENDING_ORDER_TTL_HOURS is not a number; using the default")
     app.config["PENDING_ORDER_TTL_HOURS"] = float(unpaid_orders.DEFAULT_PAYMENT_WINDOW_HOURS)
+
+# Days delivered details (account passwords, codes) stay on the tracking page
+try:
+    app.config["DELIVERY_RETENTION_DAYS"] = max(
+        int(os.getenv("DELIVERY_RETENTION_DAYS") or delivery.DEFAULT_RETENTION_DAYS), 1
+    )
+except ValueError:
+    app.logger.warning("DELIVERY_RETENTION_DAYS is not a whole number; using the default")
+    app.config["DELIVERY_RETENTION_DAYS"] = delivery.DEFAULT_RETENTION_DAYS
 
 register_db(app)
 with app.app_context():
@@ -269,6 +279,10 @@ def housekeeping():
         store.purge_old_visits()
     except Exception:  # noqa: BLE001
         app.logger.exception("Purging old visits failed")
+    try:
+        store.purge_expired_deliveries()
+    except Exception:  # noqa: BLE001
+        app.logger.exception("Clearing expired deliveries failed")
     if unpaid_orders.payment_window_hours() > 0:
         try:
             unpaid_orders.cancel_overdue_orders()

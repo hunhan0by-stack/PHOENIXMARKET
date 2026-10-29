@@ -23,6 +23,8 @@
           <p class="text-emerald-300">{{ t('timeline_payment_received') }}{% if e.note %} <span class="text-slate-400">· {{ e.note }}</span>{% endif %}</p>
         {% elif e.event_type == 'payment_undone' %}
           <p class="text-slate-500">{{ t('timeline_payment_undone') }}</p>
+        {% elif e.event_type == 'delivered' %}
+          <p class="text-emerald-300">{{ t('timeline_delivered') }}</p>
         {% elif e.event_type == 'tracking_updated' %}
           <p class="text-slate-200">{{ t('timeline_tracking').format(number=e.note) }}</p>
         {% elif e.event_type == 'customer_note' %}

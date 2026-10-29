@@ -1,0 +1,9 @@
+{{ t('email_delivery_subject').format(id=order.id) }}
+
+{{ t('email_delivery_intro') }}
+{{ t('email_delivery_security') }}
+
+{{ t('email_delivery_cta') }}: {{ track_url }}
+
+--
+{{ t('email_footer') }}

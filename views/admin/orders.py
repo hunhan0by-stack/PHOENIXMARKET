@@ -1,11 +1,12 @@
 """
-Order management: list, search, CSV export, fulfillment, payments, internal notes.
+Order management: list, search, CSV export, fulfillment, payments, deliveries, internal notes.
 """
 import csv
 import io
 
 from flask import current_app, flash, redirect, render_template, request, Response, url_for
 
+import services.delivery as delivery
 import services.notifications as notifications
 from services.pagination import Page
 import services.store as store
@@ -130,8 +131,48 @@ def order_detail(order_id):
         "admin_order_detail.html",
         order=order,
         events=store.list_order_events(order_id),
+        deliveries=store.list_deliveries(order_id),
+        delivery_max=delivery.BODY_MAX,
+        delivery_retention_days=delivery.retention_days(),
         status_options=ORDER_STATUS_CHOICES,
     )
+
+
+@bp.route("/admin/orders/<int:order_id>/delivery", methods=["POST"])
+def deliver_order(order_id):
+    """Hand over account details / codes: shown on the tracking page, never emailed."""
+    order = store.get_order_by_id(order_id, include_items=False)
+    if not order:
+        flash(tr_msg("flash_order_not_found"), "error")
+        return redirect(url_for("admin.orders"))
+    back = url_for("admin.order_detail", order_id=order_id) + "#delivery"
+    body = (request.form.get("delivery") or "").strip()
+    if order["fulfillment_status"] == "cancelled":
+        flash(tr_msg("adm_delivery_cancelled_hint"), "error")
+        return redirect(back)
+    if not body or len(body) > delivery.BODY_MAX:
+        flash(tr_msg("flash_delivery_invalid", max=delivery.BODY_MAX), "error")
+        return redirect(back)
+    store.add_delivery(order_id, body, delivery.retention_days())
+    flash(tr_msg("flash_delivery_saved"), "success")
+    if request.form.get("complete") and order["fulfillment_status"] != "completed":
+        try:
+            store.update_order_fulfillment(
+                order_id,
+                fulfillment_status="completed",
+                tracking_number=order["tracking_number"],
+                carrier_note=order["carrier_note"],
+                expected_status=order["fulfillment_status"],
+            )
+        except (store.OrderChangedError, store.OutOfStockError):
+            flash(tr_msg("flash_order_changed_meanwhile"), "error")
+    if request.form.get("notify_customer"):
+        try:
+            notifications.send_delivery_ready(store.get_order_by_id(order_id))
+            flash(tr_msg("flash_customer_notified"), "info")
+        except Exception:  # noqa: BLE001 - the delivery itself is saved
+            current_app.logger.exception("Delivery email failed for order %s", order_id)
+    return redirect(back)
 
 
 @bp.route("/admin/orders/<int:order_id>/payment", methods=["POST"])

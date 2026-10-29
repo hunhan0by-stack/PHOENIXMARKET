@@ -9,6 +9,7 @@ so guest orders that merely use the same address are never handed out.
 from datetime import datetime, timezone
 
 from services.database import get_db
+from services.store.deliveries import list_deliveries
 from services.store.orders import list_orders_for_user
 
 
@@ -34,6 +35,11 @@ def export_account_data(user_id: int) -> dict:
                     "details": li["inputs"],
                 }
                 for li in o["line_items"]
+            ],
+            # Not yet cleared by the retention period
+            "deliveries": [
+                {"delivered_at": _iso(d["created_at"]), "details": d["body"]}
+                for d in list_deliveries(o["id"]) if d["body"] is not None
             ],
         }
         for o in list_orders_for_user(user_id)
@@ -71,10 +77,19 @@ def delete_account(user_id: int) -> bool:
 
     Reviews, favourites and reset links go with it (ON DELETE CASCADE). Orders
     and support messages are kept for the statutory retention periods but no
-    longer point to an account.
+    longer point to an account. Delivered details (account passwords, codes)
+    of the account's orders are cleared at once.
     """
     db = get_db()
+    now = datetime.now(timezone.utc).isoformat()
     try:
+        db.execute(
+            """
+            UPDATE order_deliveries SET body = NULL, purged_at = ?
+            WHERE purged_at IS NULL AND order_id IN (SELECT id FROM orders WHERE user_id = ?)
+            """,
+            (now, user_id),
+        )
         db.execute("UPDATE orders SET user_id = NULL WHERE user_id = ?", (user_id,))
         db.execute("UPDATE support_messages SET user_id = NULL WHERE user_id = ?", (user_id,))
         deleted = db.execute("DELETE FROM users WHERE id = ?", (user_id,)).rowcount

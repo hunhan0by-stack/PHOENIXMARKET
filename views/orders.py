@@ -10,6 +10,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    make_response,
     redirect,
     render_template,
     request,
@@ -338,12 +339,17 @@ def track(token):
         return redirect(url_for("shop.index"))
     events = store.list_order_events(order["id"], customer_view=True)
     awaiting_payment = order["fulfillment_status"] == "pending" and not order["paid_at"]
-    return render_template(
+    response = make_response(render_template(
         "track_order.html",
         order=order,
         events=events,
+        deliveries=store.list_deliveries(order["id"]),
         payment_links=payments.payment_links(order) if awaiting_payment else [],
-    )
+    ))
+    # The page can show delivered account details: never cached or indexed
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Robots-Tag"] = "noindex"
+    return response
 
 
 @bp.route("/track/<token>/cancel", methods=["POST"])

@@ -64,6 +64,21 @@
       </div>
     </div>
 
+    {% for d in deliveries %}
+    <div class="mt-6 rounded-2xl border border-emerald-500/30 bg-slate-950/80 p-5 text-sm">
+      <h2 class="text-sm font-semibold text-emerald-300">{{ t('delivery_title') }}</h2>
+      {% if d.body is not none %}
+        <pre class="mt-3 whitespace-pre-wrap break-all rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 font-mono text-xs text-slate-100">{{ d.body }}</pre>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-[11px] text-amber-200">{{ t('delivery_purge_notice').format(when=customer_time(d.purge_at, locale)) }}</p>
+          <button type="button" data-copy="{{ d.body }}" data-copied="{{ t('copied') }}" class="rounded-full border border-slate-700 px-3 py-1.5 text-[11px] text-slate-200 hover:border-brandOrange hover:text-brandOrange">{{ t('copy') }}</button>
+        </div>
+      {% else %}
+        <p class="mt-2 text-xs text-slate-400">{{ t('delivery_purged') }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+
     {% if payment_links %}
     <div class="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-sm">
       <p class="text-xs text-slate-300">
