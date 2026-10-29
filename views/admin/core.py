@@ -123,6 +123,7 @@ def dashboard():
         legal_missing=legal.missing_seller_fields(),
         legal_reviewed=legal.texts_reviewed(),
         two_step_enabled=totp.admin_enabled(),
+        storage=current_app.config.get("STORAGE_STATUS") or {},
     )
 
 

@@ -70,6 +70,12 @@
       </div>
     {% endif %}
 
+    {% if storage.persistent is false %}
+      <div class="mt-6 rounded-2xl border border-red-500 bg-red-500/10 px-4 py-3 text-xs text-red-200" role="alert">
+        {{ t('adm_storage_ephemeral').format(path=storage.database_path) }}
+      </div>
+    {% endif %}
+
     {% if not two_step_enabled %}
       <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
         <span>{{ t('adm_2fa_reminder') }}</span>

@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import services.backup as backup
+import services.config as config_checks
 from services.currency import format_price
 import services.delivery as delivery
 from services.database import init_app as register_db, init_schema
@@ -98,6 +99,9 @@ if _IS_PRODUCTION:
             "ADMIN_USERNAME and ADMIN_PASSWORD environment variables are required in production. "
             "Set them in Render (or use FLASK_ENV=production locally only with real secrets)."
         )
+    _problems = config_checks.production_problems(os.environ, on_render=bool(os.getenv("RENDER")))
+    if _problems:
+        raise RuntimeError("Unsafe production configuration:\n- " + "\n- ".join(_problems))
 else:
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "phoenixmarket")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
@@ -153,9 +157,26 @@ with app.app_context():
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+# Optional allow-list of host names (e.g. "shop.example,www.shop.example");
+# requests for any other Host get 400 instead of links built for that host
+app.config["TRUSTED_HOSTS"] = config_checks.trusted_hosts(os.getenv("TRUSTED_HOSTS"))
+# Client IP and scheme come from Render's proxy. X-Forwarded-Host/-Prefix are
+# NOT trusted: a client could send them and get password-reset and tracking
+# links in emails built for a host of their choice.
+PROXY_FIX = {"x_for": 1, "x_proto": 1, "x_host": 0, "x_prefix": 0}
 if os.getenv("RENDER"):
     app.config["SESSION_COOKIE_SECURE"] = True
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    # __Host- cookies are only accepted over HTTPS, for this exact host and path /
+    app.config["SESSION_COOKIE_NAME"] = "__Host-session"
+    app.wsgi_app = ProxyFix(app.wsgi_app, **PROXY_FIX)
+app.config["STORAGE_STATUS"] = config_checks.storage_status(
+    app.config["DATABASE_PATH"], on_render=bool(os.getenv("RENDER"))
+)
+if app.config["STORAGE_STATUS"]["persistent"] is False:
+    app.logger.error(
+        "The database folder is not on a separate mounted disk: on Render this means the data "
+        "is deleted on every deploy. Check the service's Disks tab and DATABASE_PATH."
+    )
 
 register_blueprints(app)
 # A global (not a context processor) so order emails rendered outside the

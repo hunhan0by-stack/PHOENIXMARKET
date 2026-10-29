@@ -846,6 +846,7 @@ TRANSLATIONS = {
         "flash_admin_2fa_invalid": "The code is wrong or was already used. Wait for the next code and try again.",
         "flash_admin_2fa_enabled": "Two-step sign-in is on: from now on the login asks for a code.",
         "flash_admin_2fa_disabled": "Two-step sign-in is off.",
+        "adm_storage_ephemeral": "Data loss risk: the database ({path}) is not on a separate persistent disk. On Render it is deleted on every deploy or restart. Attach a disk in Render → Disks and point DATABASE_PATH at it before taking orders.",
         "delivery_within_one_hour": "Delivered within 1 hour",
         # Email preview text (preheader)
         "email_preheader_order": "Order #{id}: how to pay and your tracking link",
@@ -1710,6 +1711,7 @@ TRANSLATIONS = {
         "flash_admin_2fa_invalid": "Kod yanlış veya daha önce kullanılmış. Bir sonraki kodu bekleyip tekrar deneyin.",
         "flash_admin_2fa_enabled": "İki adımlı giriş açıldı: bundan sonra giriş kod isteyecek.",
         "flash_admin_2fa_disabled": "İki adımlı giriş kapatıldı.",
+        "adm_storage_ephemeral": "Veri kaybı riski: veritabanı ({path}) ayrı bir kalıcı diskte değil. Render'da her deploy veya yeniden başlatmada silinir. Sipariş almadan önce Render → Disks bölümünden disk ekleyip DATABASE_PATH'i ona yönlendirin.",
         "delivery_within_one_hour": "1 saat içinde teslim",
         # Email preview text (preheader)
         "email_preheader_order": "Sipariş #{id}: ödeme bilgileri ve takip bağlantınız",
