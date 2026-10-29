@@ -1,7 +1,7 @@
 """
 Contact form messages with their reply history, and the email outbox.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from services.database import get_db
 from services.store.base import _parse_dt
@@ -119,6 +119,20 @@ def create_outbox_entry(to_address, subject, body_text, body_html, kind, status)
     )
     db.commit()
     return cur.lastrowid
+
+
+def purge_old_emails(retention_days: int, now: datetime | None = None) -> int:
+    """Delete outbox entries older than retention_days (0 = keep everything); returns rows removed.
+
+    Off by default (OUTBOX_RETENTION_DAYS): deleting records is the owner's decision.
+    """
+    if not retention_days or retention_days <= 0:
+        return 0
+    cutoff = ((now or datetime.now(timezone.utc)) - timedelta(days=retention_days)).isoformat()
+    db = get_db()
+    removed = db.execute("DELETE FROM email_outbox WHERE created_at < ?", (cutoff,)).rowcount
+    db.commit()
+    return removed
 
 
 def _email_from_row(row) -> dict:

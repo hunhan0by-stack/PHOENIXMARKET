@@ -42,11 +42,28 @@ def smtp_settings():
     }
 
 
-def send_email(to_address: str, subject: str, text_body: str, html_body: str | None = None, kind: str = "") -> int:
-    """Record the message in the outbox and deliver it if SMTP is configured."""
+REDACTED = "[removed for security]"
+
+
+def send_email(
+    to_address: str, subject: str, text_body: str, html_body: str | None = None, kind: str = "",
+    redact: tuple = (),
+) -> int:
+    """Record the message in the outbox and deliver it if SMTP is configured.
+
+    redact: secret strings (e.g. a password-reset link) that the delivered
+    email contains but the stored copy must not, so admins and database
+    backups never hold a working link. Without SMTP the outbox is the only way
+    the message can be read, so it is then stored as it is.
+    """
     settings = smtp_settings()
+    stored_text, stored_html = text_body, html_body
+    if settings:
+        for value in redact:
+            stored_text = stored_text.replace(value, REDACTED)
+            stored_html = stored_html.replace(value, REDACTED) if stored_html else stored_html
     outbox_id = store.create_outbox_entry(
-        to_address, subject, text_body, html_body, kind, "queued" if settings else "logged"
+        to_address, subject, stored_text, stored_html, kind, "queued" if settings else "logged"
     )
     if settings:
         message = _build_message(settings["sender"], to_address, subject, text_body, html_body)

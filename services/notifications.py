@@ -5,6 +5,7 @@ shop owner (new order, new support message) in the language chosen under
 Admin → Settings. All are sent via services.mailer.
 """
 from flask import render_template, url_for
+from markupsafe import escape
 
 from services.mailer import send_email
 import services.payments as payments
@@ -68,7 +69,12 @@ def send_delivery_ready(order: dict) -> int:
 def send_password_reset(to_address: str, reset_url: str, locale: str) -> int:
     text, html = _render("password_reset", locale, reset_url=reset_url)
     subject = translate("email_reset_subject", locale)
-    return send_email(to_address, subject, text, html, kind="password_reset")
+    # The link signs the holder in: never keep a working copy in the outbox.
+    # HTML templates escape it (& -> &amp;), so both spellings are redacted.
+    return send_email(
+        to_address, subject, text, html, kind="password_reset",
+        redact=(reset_url, str(escape(reset_url))),
+    )
 
 
 def notify_back_in_stock(product_id: int) -> int:

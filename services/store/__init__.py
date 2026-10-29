@@ -136,6 +136,7 @@ from services.store.support import (  # noqa: F401
     list_emails,
     list_support_messages,
     list_support_replies,
+    purge_old_emails,
     save_support_reply,
     set_support_status,
     support_customer_context,

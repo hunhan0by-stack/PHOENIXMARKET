@@ -139,6 +139,13 @@ except ValueError:
     app.logger.warning("DELIVERY_RETENTION_DAYS is not a whole number; using the default")
     app.config["DELIVERY_RETENTION_DAYS"] = delivery.DEFAULT_RETENTION_DAYS
 
+# Days sent emails stay in Admin → Emails; 0 (default) keeps them all
+try:
+    app.config["OUTBOX_RETENTION_DAYS"] = max(int(os.getenv("OUTBOX_RETENTION_DAYS") or 0), 0)
+except ValueError:
+    app.logger.warning("OUTBOX_RETENTION_DAYS is not a whole number; keeping all emails")
+    app.config["OUTBOX_RETENTION_DAYS"] = 0
+
 register_db(app)
 with app.app_context():
     init_schema()
@@ -305,6 +312,11 @@ def housekeeping():
         store.purge_expired_deliveries()
     except Exception:  # noqa: BLE001
         app.logger.exception("Clearing expired deliveries failed")
+    if app.config["OUTBOX_RETENTION_DAYS"]:
+        try:
+            store.purge_old_emails(app.config["OUTBOX_RETENTION_DAYS"])
+        except Exception:  # noqa: BLE001
+            app.logger.exception("Purging old outbox entries failed")
     if unpaid_orders.payment_window_hours() > 0:
         try:
             unpaid_orders.cancel_overdue_orders()
