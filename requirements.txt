@@ -4,3 +4,4 @@ python-dotenv>=1.0,<2.0
 openai>=1.0,<2.0
 Pillow>=13.0,<14.0
 requests>=2.31,<3.0
+segno>=1.6,<2.0

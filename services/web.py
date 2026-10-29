@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import re
 import secrets
+import time
 from datetime import timedelta, timezone
 from urllib.parse import urlencode, urlparse
 
@@ -23,6 +24,11 @@ SUPPORTED_CURRENCIES = ("TRY", "USD", "EUR")
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MIN_PASSWORD_LENGTH = 8
+
+# The admin is signed out after this long without opening an admin page;
+# ADMIN_SEEN_KEY holds the time of the last one (refreshed by the admin blueprint)
+ADMIN_IDLE_SECONDS = 12 * 60 * 60
+ADMIN_SEEN_KEY = "admin_seen"
 
 CSRF_SESSION_KEY = "_csrf_token"
 
@@ -154,9 +160,18 @@ def logout_customer() -> None:
 def is_admin():
     user = session.get("user") or {}
     # Support both the older "admin" flag and the new "is_admin" flag
-    if session.get("is_admin"):
-        return True
-    return bool(session.get("admin")) and user.get("role") == "admin"
+    signed_in = bool(session.get("is_admin")) or (bool(session.get("admin")) and user.get("role") == "admin")
+    if signed_in and time.time() - session.get(ADMIN_SEEN_KEY, time.time()) > ADMIN_IDLE_SECONDS:
+        # Idle too long: sign the admin out (the panel asks for the login again)
+        logout_admin()
+        return False
+    return signed_in
+
+
+def logout_admin() -> None:
+    session.pop("is_admin", None)
+    session.pop("admin", None)
+    session.pop(ADMIN_SEEN_KEY, None)
 
 
 def password_problem(password: str, confirm: str):

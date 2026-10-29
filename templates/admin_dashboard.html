@@ -70,6 +70,13 @@
       </div>
     {% endif %}
 
+    {% if not two_step_enabled %}
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
+        <span>{{ t('adm_2fa_reminder') }}</span>
+        <a href="{{ url_for('admin.security') }}" class="font-semibold text-amber-100 underline hover:text-brandOrange">{{ t('adm_2fa_reminder_link') }}</a>
+      </div>
+    {% endif %}
+
     {% if backup_overdue %}
       <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
         <span>{{ t('adm_backup_reminder') }}</span>

@@ -21,6 +21,7 @@ from services.listing import (
     get_listing_language_badge,
 )
 import services.store as store
+import services.totp as totp
 from services.translations import t as translate
 import services.unpaid_orders as unpaid_orders
 from services.uploads import product_image_url
@@ -294,6 +295,13 @@ def housekeeping():
 def backup_command():
     """Write a database backup now (e.g. from a Render shell): flask --app app backup"""
     print(backup.create_backup())
+
+
+@app.cli.command("disable-admin-2fa")
+def disable_admin_2fa_command():
+    """Turn off the admin's two-step sign-in (lost phone): flask --app app disable-admin-2fa"""
+    totp.disable_admin()
+    print("Two-step sign-in for the admin is now off; set it up again under Admin → Settings.")
 
 
 @app.before_request

@@ -12,6 +12,9 @@
     <p class="mt-1 text-sm text-slate-400">
       {{ t('adm_settings_intro') }}
     </p>
+    <p class="mt-2 text-xs">
+      <a href="{{ url_for('admin.security') }}" class="text-brandOrange hover:text-amber-200">{{ t('adm_2fa_title') }} →</a>
+    </p>
 
     <form method="post" class="mt-6 space-y-4 text-sm rounded-2xl border border-slate-800 bg-slate-950/80 p-5">
       {{ csrf_field() }}

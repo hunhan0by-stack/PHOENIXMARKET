@@ -1,11 +1,13 @@
 """
 The admin blueprint, its login guard and helpers shared by several admin areas.
 """
-from flask import Blueprint, current_app, flash, redirect, request, url_for
+import time
+
+from flask import Blueprint, current_app, flash, redirect, request, session, url_for
 
 import services.notifications as notifications
 from services.ratelimit import RateLimiter
-from services.web import is_admin, tr_msg
+from services.web import ADMIN_SEEN_KEY, is_admin, tr_msg
 
 
 bp = Blueprint("admin", __name__)
@@ -13,7 +15,7 @@ bp = Blueprint("admin", __name__)
 
 ORDER_STATUS_CHOICES = ("pending", "processing", "completed", "cancelled")
 LISTING_STATUS_CHOICES = ("active", "inactive")
-PUBLIC_ENDPOINTS = {"admin.login", "admin.logout"}
+PUBLIC_ENDPOINTS = {"admin.login", "admin.login_verify", "admin.logout"}
 
 
 # Brute-force protection for the admin login (per client IP)
@@ -22,8 +24,11 @@ admin_login_limiter = RateLimiter(max_hits=5, window_seconds=15 * 60)
 
 @bp.before_request
 def require_admin():
-    if request.endpoint not in PUBLIC_ENDPOINTS and not is_admin():
+    if request.endpoint in PUBLIC_ENDPOINTS:
+        return None
+    if not is_admin():
         return redirect(url_for("admin.login"))
+    session[ADMIN_SEEN_KEY] = time.time()
     return None
 
 

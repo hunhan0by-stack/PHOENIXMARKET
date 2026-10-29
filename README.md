@@ -14,6 +14,16 @@ deployed on Render with gunicorn.
   pagination, related products, ratings, favourites.
 - **Packages:** a listing can be sold in packages (e.g. 1K / 5K / 10K), each with
   its own price and stock; customers must pick one.
+- **Order fields:** a listing can ask for up to 3 details at checkout (e.g.
+  "Instagram username", "Post link"), text or link, required or optional. The
+  answers are stored per order line and shown to the admin, in the emails, the
+  CSV export and on the tracking page.
+- **Delivery:** account details or codes are entered on the admin order page
+  and shown only on the customer's tracking page (never emailed: the email just
+  says the delivery is ready). They are removed after `DELIVERY_RETENTION_DAYS`.
+- **Automatic delivery:** codes / licence keys can be uploaded per listing or
+  package; confirming the payment hands the next codes to the order and
+  completes it. If codes run short nothing is handed out and the admin is told.
 - **Orders:** stock is reserved atomically at checkout and returned on
   cancellation; discount codes; order timeline; customers can cancel pending
   orders from their tracking page. Orders not paid within the payment window
@@ -37,7 +47,9 @@ deployed on Render with gunicorn.
   The owner is notified of new orders and support messages.
 - **Languages / currencies:** English and Turkish UI; prices in TRY, USD or EUR.
 - **Security:** CSRF protection, rate limits, nonce-based CSP and security headers,
-  safe image uploads, open-redirect protection.
+  safe image uploads, open-redirect protection. Optional two-step sign-in for
+  the admin (authenticator app codes, Admin → Settings → Two-step sign-in); the
+  admin is signed out after 12 hours without opening an admin page.
 - **AI support chat (optional):** answers with catalog context when
   `OPENAI_API_KEY` is set; FAQ answers otherwise.
 
@@ -99,6 +111,7 @@ tailwindcss -c tailwind.config.js -i static/css/input.css -o static/css/app.css 
 | `BACKUP_DIR` | Daily database copies (default: `backups/` next to `DATABASE_PATH`). |
 | `DEFAULT_LOCALE` | `en` (default) or `tr`: language for first-time visitors and search engines. Each page is also reachable as `?lang=tr` / `?lang=en` (canonical + hreflang + sitemap). |
 | `PENDING_ORDER_TTL_HOURS` | Hours a customer has to pay (default `24`); unpaid orders are then cancelled and their stock released. `0` turns this off. |
+| `DELIVERY_RETENTION_DAYS` | Days delivered account details / codes stay on the tracking page (default `14`, at least `1`); then they are removed. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `SMTP_STARTTLS`, `SMTP_SSL` | Email delivery. Without `SMTP_HOST` emails are only logged in Admin → Emails. |
 | `OPENAI_API_KEY` | Enables AI answers in the support chat. |
 | `EXCHANGE_RATE_*`, `TRY_PER_USD`, `EUR_PER_USD` | Exchange-rate source and fallbacks. |
@@ -116,6 +129,9 @@ See `.env.example` for a template.
 - **Keep one worker:** rate limits are kept in process memory.
 - Schema changes are applied automatically and non-destructively at start-up
   (`services/database.py`: new tables are created, missing columns added).
+- **Lost the phone with the admin's authenticator app?** In a Render shell run
+  `flask --app app disable-admin-2fa`, sign in with the password and set
+  two-step sign-in up again.
 
 ## Backups
 
@@ -127,6 +143,8 @@ See `.env.example` for a template.
   not survive losing that disk. Download one at least weekly from
   Admin → Settings → Database backups; the dashboard reminds you after 7 days.
 - **Manual:** `flask --app app backup` (e.g. in a Render shell) writes a copy now.
+- **Keep downloaded copies private:** they contain customer data, unused code
+  stock and delivered details not yet removed by `DELIVERY_RETENTION_DAYS`.
 
 **Restoring** a backup (`phoenixmarket-YYYYMMDD-HHMMSS.db`, times in UTC):
 

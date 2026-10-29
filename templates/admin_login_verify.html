@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ t('adm_login') }} – PHOENIXMARKET{% endblock %}
+{% block content %}
+<section class="bg-slate-950/90">
+  <div class="mx-auto max-w-sm px-4 py-14 sm:px-6 lg:px-8">
+    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-brandOrange">
+      {{ t('adm_access') }}
+    </p>
+    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-slate-50">
+      {{ t('adm_2fa_title') }}
+    </h1>
+    <p class="mt-2 text-sm text-slate-400">
+      {{ t('adm_2fa_login_intro') }}
+    </p>
+
+    <form method="post" class="mt-6 space-y-4">
+      {{ csrf_field() }}
+      <div>
+        <label for="f-code" class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_2fa_code') }}</label>
+        <input id="f-code" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" autofocus required class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 font-mono text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+      </div>
+      <button type="submit" class="w-full rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-4 py-2.5 text-sm font-semibold text-black">
+        {{ t('adm_login_button') }}
+      </button>
+    </form>
+    <p class="mt-4 text-[11px] text-slate-500">{{ t('adm_2fa_lost_phone') }}</p>
+  </div>
+</section>
+{% endblock %}
