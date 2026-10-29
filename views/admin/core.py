@@ -10,13 +10,12 @@ import services.backup as backup
 import services.legal as legal
 import services.store as store
 import services.totp as totp
-from services.web import ADMIN_SEEN_KEY, client_ip, is_admin, logout_admin, tr_msg
+from services.web import client_ip, is_admin, login_admin, logout_admin, refresh_admin_epoch, tr_msg
 from views.admin.base import admin_login_limiter, bp
 
 # Password accepted, waiting for the authenticator code (time it was accepted)
 PENDING_2FA_KEY = "admin_2fa_pending"
 PENDING_2FA_SECONDS = 5 * 60
-SETUP_2FA_KEY = "admin_2fa_setup"
 
 
 @bp.route("/admin/login", methods=["GET", "POST"])
@@ -53,9 +52,7 @@ def login():
 def sign_in_admin():
     # Single-owner admin; kept separate from any customer session
     session.pop(PENDING_2FA_KEY, None)
-    session["is_admin"] = True
-    session["admin"] = True
-    session[ADMIN_SEEN_KEY] = time.time()
+    login_admin()
     flash(tr_msg("flash_admin_login_ok"), "success")
     return redirect(url_for("admin.dashboard"))
 
@@ -130,11 +127,7 @@ def dashboard():
 @bp.route("/admin/security")
 def security():
     """Two-step sign-in: set up (QR code + first code) or turn off."""
-    secret = None
-    if not totp.admin_enabled():
-        # The secret being set up stays in the (signed) session until a code confirms it
-        secret = session.get(SETUP_2FA_KEY) or totp.new_secret()
-        session[SETUP_2FA_KEY] = secret
+    secret = None if totp.admin_enabled() else totp.pending_secret()
     uri = totp.provisioning_uri(secret, current_app.config["ADMIN_USERNAME"] or "admin") if secret else None
     return render_template(
         "admin_security.html",
@@ -146,14 +139,15 @@ def security():
 
 @bp.route("/admin/security/enable", methods=["POST"])
 def enable_two_step():
-    secret = session.get(SETUP_2FA_KEY)
-    if not secret or totp.admin_enabled():
+    if totp.admin_enabled():
         return redirect(url_for("admin.security"))
+    secret = totp.pending_secret()
     if not totp.verify_admin_code(request.form.get("code", ""), secret=secret):
         flash(tr_msg("flash_admin_2fa_invalid"), "error")
         return redirect(url_for("admin.security"))
     totp.enable_admin(secret)
-    session.pop(SETUP_2FA_KEY, None)
+    # Every other admin session (e.g. a stolen cookie) now needs the code too
+    refresh_admin_epoch()
     flash(tr_msg("flash_admin_2fa_enabled"), "success")
     return redirect(url_for("admin.security"))
 
@@ -165,5 +159,6 @@ def disable_two_step():
             flash(tr_msg("flash_admin_2fa_invalid"), "error")
             return redirect(url_for("admin.security"))
         totp.disable_admin()
+        refresh_admin_epoch()
         flash(tr_msg("flash_admin_2fa_disabled"), "info")
     return redirect(url_for("admin.security"))

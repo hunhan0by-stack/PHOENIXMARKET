@@ -15,6 +15,7 @@ from flask import current_app, g, has_request_context, redirect, request, sessio
 from markupsafe import Markup
 
 import services.store as store
+import services.totp as totp
 from services.translations import t as translate
 
 LOCALE_KEY = "locale"
@@ -29,6 +30,10 @@ MIN_PASSWORD_LENGTH = 8
 # ADMIN_SEEN_KEY holds the time of the last one (refreshed by the admin blueprint)
 ADMIN_IDLE_SECONDS = 12 * 60 * 60
 ADMIN_SEEN_KEY = "admin_seen"
+# ... and at the latest this long after signing in, however active
+ADMIN_MAX_SECONDS = 7 * 24 * 60 * 60
+ADMIN_SINCE_KEY = "admin_since"
+ADMIN_EPOCH_KEY = "admin_epoch"
 
 CSRF_SESSION_KEY = "_csrf_token"
 
@@ -157,21 +162,62 @@ def logout_customer() -> None:
     g.pop("current_user", None)
 
 
+def admin_epoch() -> str:
+    """Fingerprint of the admin's credentials (password and two-step secret).
+
+    Stored in the session at sign-in: changing ADMIN_PASSWORD or turning
+    two-step sign-in on/off changes it and so signs out every other admin
+    session (signed cookies cannot be revoked otherwise).
+    """
+    if "admin_epoch" not in g:
+        material = "\0".join([
+            current_app.config.get("ADMIN_USERNAME") or "",
+            current_app.config.get("ADMIN_PASSWORD") or "",
+            totp.admin_secret() or "",
+        ])
+        g.admin_epoch = hmac.new(
+            str(current_app.config["SECRET_KEY"]).encode("utf-8"), material.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+    return g.admin_epoch
+
+
+def login_admin() -> None:
+    now = time.time()
+    session["is_admin"] = True
+    session["admin"] = True
+    session[ADMIN_SEEN_KEY] = now
+    session[ADMIN_SINCE_KEY] = now
+    session[ADMIN_EPOCH_KEY] = admin_epoch()
+
+
+def refresh_admin_epoch() -> None:
+    """After the signed-in admin changed the credentials: keep this session, revoke the others."""
+    g.pop("admin_epoch", None)
+    session[ADMIN_EPOCH_KEY] = admin_epoch()
+
+
 def is_admin():
     user = session.get("user") or {}
     # Support both the older "admin" flag and the new "is_admin" flag
     signed_in = bool(session.get("is_admin")) or (bool(session.get("admin")) and user.get("role") == "admin")
-    if signed_in and time.time() - session.get(ADMIN_SEEN_KEY, time.time()) > ADMIN_IDLE_SECONDS:
-        # Idle too long: sign the admin out (the panel asks for the login again)
+    if not signed_in:
+        return False
+    now = time.time()
+    if (
+        now - session.get(ADMIN_SEEN_KEY, now) > ADMIN_IDLE_SECONDS
+        or now - session.get(ADMIN_SINCE_KEY, now) > ADMIN_MAX_SECONDS
+        or not hmac.compare_digest(str(session.get(ADMIN_EPOCH_KEY, "")), admin_epoch())
+    ):
+        # Idle or too old, or the credentials changed since sign-in: the
+        # panel asks for the login again
         logout_admin()
         return False
-    return signed_in
+    return True
 
 
 def logout_admin() -> None:
-    session.pop("is_admin", None)
-    session.pop("admin", None)
-    session.pop(ADMIN_SEEN_KEY, None)
+    for key in ("is_admin", "admin", ADMIN_SEEN_KEY, ADMIN_SINCE_KEY, ADMIN_EPOCH_KEY):
+        session.pop(key, None)
 
 
 def password_problem(password: str, confirm: str):

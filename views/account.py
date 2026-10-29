@@ -5,7 +5,7 @@ order history. Passwords are stored hashed in the users table.
 import json
 import secrets
 
-from flask import Blueprint, Response, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, Response, flash, redirect, render_template, request, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import services.notifications as notifications
@@ -18,6 +18,7 @@ from services.web import (
     current_user,
     get_current_locale,
     login_customer,
+    logout_admin,
     logout_customer,
     password_problem,
     tr_msg,
@@ -110,8 +111,7 @@ def signout():
     if request.method != "POST":
         return redirect(url_for("shop.index"))
     logout_customer()
-    session.pop("admin", None)
-    session.pop("is_admin", None)
+    logout_admin()
     flash(tr_msg("flash_signed_out"), "success")
     return redirect(url_for("shop.index"))
 

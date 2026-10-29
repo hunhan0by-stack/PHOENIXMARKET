@@ -4,6 +4,7 @@ import time
 import pytest
 
 from app import app
+import services.store as store
 import services.totp as totp
 from tests.helpers import ADMIN_LOGIN, in_app
 
@@ -91,28 +92,64 @@ def test_setting_up_two_step_sign_in(admin):
     assert "Two-step sign-in is off" in admin.html("/admin/dashboard")
     html = admin.html("/admin/security")
     assert "<svg" in html and 'class="segno"' in html
-    secret = admin.session()["admin_2fa_setup"]
-    assert secret in html
+    secret = in_app(store.get_config, totp.PENDING_KEY)
+    assert secret and secret in html
+    # The secret is kept on the server, never in the (readable) session cookie
+    assert secret not in str(admin.session())
 
     admin.post("/admin/security/enable", {"code": "000000" if current_code(secret) != "000000" else "111111"})
     assert not in_app(totp.admin_enabled)
     admin.post("/admin/security/enable", {"code": current_code(secret)})
     assert in_app(totp.admin_secret) == secret
-    assert "admin_2fa_setup" not in admin.session()
+    assert not in_app(store.get_config, totp.PENDING_KEY)
+    # The admin who turned it on stays signed in
     assert "Two-step sign-in is off" not in admin.html("/admin/dashboard")
 
 
-def test_turning_off_needs_a_code(admin, secret):
+def test_turning_off_needs_a_code(make_client, secret):
+    admin = make_client(ip="10.50.0.6")
+    admin.post("/admin/login", ADMIN_LOGIN)
+    admin.post("/admin/login/verify", {"code": current_code(secret)})
     admin.post("/admin/security/disable", {"code": ""})
     assert in_app(totp.admin_enabled)
-    admin.post("/admin/security/disable", {"code": current_code(secret)})
+    # The sign-in used this step's code; the next one is still accepted
+    admin.post("/admin/security/disable", {"code": current_code(secret, offset=1)})
     assert not in_app(totp.admin_enabled)
+    assert admin.get("/admin/dashboard").status_code == 200  # this session stays signed in
 
 
 def test_cli_turns_off_two_step_sign_in(secret):
     result = app.test_cli_runner().invoke(args=["disable-admin-2fa"])
     assert result.exit_code == 0 and "now off" in result.output
     assert not in_app(totp.admin_enabled)
+
+
+def test_turning_on_two_step_signs_out_other_admin_sessions(admin, make_client):
+    other = make_client(ip="10.50.0.9")
+    other.login_admin()  # e.g. a stolen cookie
+    secret = in_app(totp.pending_secret)
+    admin.post("/admin/security/enable", {"code": current_code(secret)})
+    assert admin.get("/admin/dashboard").status_code == 200
+    assert other.get("/admin/dashboard").headers["Location"].endswith("/admin/login")
+
+
+def test_changing_the_admin_password_revokes_sessions(admin, monkeypatch):
+    assert admin.get("/admin/dashboard").status_code == 200
+    monkeypatch.setitem(app.config, "ADMIN_PASSWORD", "a-brand-new-password")
+    assert admin.get("/admin/dashboard").headers["Location"].endswith("/admin/login")
+
+
+def test_admin_session_has_an_absolute_lifetime(admin):
+    with admin.c.session_transaction() as s:
+        s["admin_since"] = time.time() - 8 * 24 * 60 * 60
+    assert admin.get("/admin/dashboard").headers["Location"].endswith("/admin/login")
+
+
+def test_session_without_credential_fingerprint_is_not_admin(client):
+    # Old-style cookie (before the fingerprint existed) or a forged flag
+    with client.c.session_transaction() as s:
+        s["is_admin"] = True
+    assert client.get("/admin/dashboard").headers["Location"].endswith("/admin/login")
 
 
 def test_idle_admin_is_signed_out(admin):

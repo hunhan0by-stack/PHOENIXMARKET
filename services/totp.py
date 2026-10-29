@@ -27,6 +27,9 @@ ISSUER = "PHOENIXMARKET"
 
 SECRET_KEY = "admin.totp_secret"
 LAST_STEP_KEY = "admin.totp_last_step"
+# The secret shown during set-up, until a first code confirms it (kept on
+# the server, not in the readable session cookie)
+PENDING_KEY = "admin.totp_pending"
 
 
 def new_secret() -> str:
@@ -87,8 +90,18 @@ def verify_admin_code(code: str, secret: str | None = None, now: float | None = 
     return True
 
 
+def pending_secret() -> str:
+    """The secret being set up, created on first use."""
+    secret = store.get_config(PENDING_KEY)
+    if not secret:
+        secret = new_secret()
+        store.set_config(PENDING_KEY, secret)
+    return secret
+
+
 def enable_admin(secret: str) -> None:
     store.set_config(SECRET_KEY, secret)
+    store.set_config(PENDING_KEY, "")
 
 
 def disable_admin() -> None:
