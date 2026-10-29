@@ -47,9 +47,13 @@ deployed on Render with gunicorn.
   The owner is notified of new orders and support messages.
 - **Languages / currencies:** English and Turkish UI; prices in TRY, USD or EUR.
 - **Security:** CSRF protection, rate limits, nonce-based CSP and security headers,
-  safe image uploads, open-redirect protection. Optional two-step sign-in for
-  the admin (authenticator app codes, Admin → Settings → Two-step sign-in); the
-  admin is signed out after 12 hours without opening an admin page.
+  safe image uploads, open-redirect protection, checkout limits (orders per IP
+  and unpaid orders per email). Optional two-step sign-in for the admin
+  (authenticator app codes); admin sessions end after 12 idle hours, after 7
+  days, or when the admin password or two-step setting changes. A security log
+  (Admin → Settings → Two-step sign-in and security log) records sign-ins,
+  payments, deliveries, code stock, backups and settings changes without
+  secrets. See [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 - **AI support chat (optional):** answers with catalog context when
   `OPENAI_API_KEY` is set; FAQ answers otherwise.
 
@@ -112,6 +116,9 @@ tailwindcss -c tailwind.config.js -i static/css/input.css -o static/css/app.css 
 | `DEFAULT_LOCALE` | `en` (default) or `tr`: language for first-time visitors and search engines. Each page is also reachable as `?lang=tr` / `?lang=en` (canonical + hreflang + sitemap). |
 | `PENDING_ORDER_TTL_HOURS` | Hours a customer has to pay (default `24`); unpaid orders are then cancelled and their stock released. `0` turns this off. |
 | `DELIVERY_RETENTION_DAYS` | Days delivered account details / codes stay on the tracking page (default `14`, at least `1`); then they are removed. |
+| `OUTBOX_RETENTION_DAYS` | Days sent emails stay under Admin → Emails (default `0` = kept). |
+| `TRUSTED_HOSTS` | Comma-separated host names the site answers to (e.g. `shop.example,www.shop.example`); other hosts get 400. Recommended once the domain is set. |
+| `ALLOW_EPHEMERAL_DATABASE` | `1` lets the app start on Render without `DATABASE_PATH` (data lost on every deploy). Throw-away test services only. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`, `SMTP_STARTTLS`, `SMTP_SSL` | Email delivery. Without `SMTP_HOST` emails are only logged in Admin → Emails. |
 | `OPENAI_API_KEY` | Enables AI answers in the support chat. |
 | `EXCHANGE_RATE_*`, `TRY_PER_USD`, `EUR_PER_USD` | Exchange-rate source and fallbacks. |
@@ -122,10 +129,13 @@ See `.env.example` for a template.
 
 `render.yaml` defines the web service (`gunicorn app:app --workers 1 --threads 4`).
 
-- **Persistent data:** Render's filesystem is reset on every deploy. Attach a
-  persistent disk and set `DATABASE_PATH` (e.g. `/var/data/phoenixmarket.db`)
-  and `UPLOAD_DIR` (e.g. `/var/data/uploads`) to paths on it; otherwise orders,
-  accounts and uploaded images are lost on redeploy.
+- **Persistent data:** Render's filesystem is reset on every deploy. `render.yaml`
+  defines a disk at `/var/data` with `DATABASE_PATH`, `UPLOAD_DIR` and
+  `BACKUP_DIR` on it (paid instance types). On Render the app refuses to start
+  without `DATABASE_PATH` or with an `ADMIN_PASSWORD` under 12 characters, and
+  the admin dashboard shows a red warning while the database folder is not on
+  a mounted disk. Verify the disk as described in
+  [docs/DATA_BACKUP_RECOVERY.md](docs/DATA_BACKUP_RECOVERY.md).
 - **Keep one worker:** rate limits are kept in process memory.
 - Schema changes are applied automatically and non-destructively at start-up
   (`services/database.py`: new tables are created, missing columns added).
@@ -134,6 +144,9 @@ See `.env.example` for a template.
   two-step sign-in up again.
 
 ## Backups
+
+The full procedure (verifying the Render disk, off-site copies, RPO/RTO,
+restoring) is in [docs/DATA_BACKUP_RECOVERY.md](docs/DATA_BACKUP_RECOVERY.md) (Turkish).
 
 - **Automatic:** once a day the app writes a verified copy of the database
   (SQLite online backup, safe while the shop is running) to `BACKUP_DIR` and
@@ -169,7 +182,9 @@ templates/             Jinja templates (emails in templates/emails/)
 static/                CSS/JS/images
 tests/                 pytest suite
 scripts/               check.ps1 (pre-release checks), rehearse_migration.py
-docs/                  RELEASE_CHECKLIST.md (launch steps, Turkish)
+docs/                  (Turkish) RELEASE_CHECKLIST.md launch steps, SECURITY_AUDIT.md,
+                       DATA_BACKUP_RECOVERY.md, INCIDENT_RESPONSE.md, PRIVACY_COMPLIANCE_GAPS.md
+.github/               Dependabot and the CI checks (tests, pip-audit, bandit)
 data/                  local SQLite database (not for version control)
 ```
 
