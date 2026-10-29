@@ -59,6 +59,7 @@ from services.store.catalog import (  # noqa: F401
 )
 from services.store.orders import (  # noqa: F401
     add_order_internal_note,
+    count_open_unpaid_orders,
     count_orders,
     count_orders_by_status,
     count_orders_filtered,

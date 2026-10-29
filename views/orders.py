@@ -57,6 +57,11 @@ COUPON_SESSION_KEY = "coupon"
 CHECKOUT_MAX_LENGTHS = {"full_name": 100, "email": 254, "notes": 2000}
 # Slows down guessing discount codes (per client IP)
 coupon_limiter = RateLimiter(max_hits=20, window_seconds=10 * 60)
+# Every order reserves stock until it is paid or expires and emails the
+# address given: cap orders per client IP, and unpaid orders per address, so
+# a script can neither hoard the stock nor use checkout to flood a mailbox.
+checkout_limiter = RateLimiter(max_hits=10, window_seconds=60 * 60)
+MAX_OPEN_ORDERS_PER_EMAIL = 3
 
 
 def coupon_error_message(err: coupons.CouponError, currency: str) -> str:
@@ -261,6 +266,14 @@ def checkout():
         if problem:
             flash(tr_msg(problem, **params), "error")
             return render_template("checkout.html", items=items, form=form, **totals)
+        limit_key = client_ip()
+        wait = checkout_limiter.retry_after(limit_key)
+        if wait:
+            flash(tr_msg("flash_too_many_attempts", minutes=(wait + 59) // 60), "error")
+            return render_template("checkout.html", items=items, form=form, **totals), 429
+        if store.count_open_unpaid_orders(email) >= MAX_OPEN_ORDERS_PER_EMAIL:
+            flash(tr_msg("flash_checkout_open_orders", n=MAX_OPEN_ORDERS_PER_EMAIL), "error")
+            return render_template("checkout.html", items=items, form=form, **totals), 429
 
         tracking_token = str(uuid.uuid4())
         # Every price here was just recomputed from the database
@@ -299,6 +312,7 @@ def checkout():
             session.pop(COUPON_SESSION_KEY, None)
             flash(tr_msg("flash_coupon_used_up"), "error")
             return redirect(url_for("orders.cart"))
+        checkout_limiter.hit(limit_key)
         placed = store.get_order_by_id(order_id)
         try:
             notifications.send_order_confirmation(placed)

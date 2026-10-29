@@ -133,6 +133,45 @@ def test_undoing_the_payment_keeps_the_codes(client, admin):
     assert in_app(store.count_codes_for_order, order["id"]) == 1
 
 
+def test_cancelling_a_delivered_order_does_not_resell_handed_out_codes(client, admin):
+    upload(admin, ["CODE-1", "CODE-2"])
+    order = place_order(client, (CANVA, 1))
+    confirm_payment(admin, order["id"])
+    stock_after_sale = stock_of(CANVA)
+    in_app(
+        store.update_order_fulfillment, order["id"],
+        fulfillment_status="cancelled", tracking_number=None, carrier_note=None,
+    )
+    # CODE-1 stays with the cancelled order; only CODE-2 can still be sold
+    assert stock_of(CANVA) == stock_after_sale and available() == 1
+
+
+def test_concurrent_confirmations_never_share_a_code(client, admin):
+    """Two orders paid at the same moment with one code left: exactly one gets it."""
+    import threading
+
+    from app import app
+
+    upload(admin, ["LAST-CODE"])
+    set_stock(CANVA, 5)
+    first = place_order(client, (CANVA, 1))
+    second = place_order(client, (CANVA, 1))
+    results, barrier = {}, threading.Barrier(2)
+
+    def deliver(order_id):
+        with app.app_context():
+            barrier.wait()
+            results[order_id] = store.deliver_from_code_stock(order_id, 14)["status"]
+
+    threads = [threading.Thread(target=deliver, args=(o["id"],)) for o in (first, second)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+    assert sorted(results.values()) == ["delivered", "short"]
+    assert in_app(store.count_codes_for_order, first["id"]) + in_app(store.count_codes_for_order, second["id"]) == 1
+
+
 def test_handed_out_codes_are_cleared_with_the_delivery(client, admin):
     upload(admin, ["CODE-1"])
     order = place_order(client, (CANVA, 1))

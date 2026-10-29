@@ -216,6 +216,31 @@ def _reserve_stock(db, line_items: list, require_active: bool = True) -> None:
             raise OutOfStockError(name)
 
 
+def _stock_lines(db, order_id: int) -> list:
+    """The order's lines counting only the units that are still stock.
+
+    Units whose codes were handed out (code stock) are gone for good: a
+    cancellation must not put them back on sale, or the next paid order would
+    find stock but no code.
+    """
+    handed_out = {
+        (r["product_id"], r["variant_id"]): r["n"]
+        for r in db.execute(
+            """
+            SELECT product_id, variant_id, COUNT(*) AS n FROM delivery_codes
+            WHERE order_id = ? GROUP BY product_id, variant_id
+            """,
+            (order_id,),
+        )
+    }
+    lines = []
+    for li in _order_items_for(order_id):
+        quantity = li["quantity"] - handed_out.get((li["product_id"], li["variant_id"]), 0)
+        if quantity > 0:
+            lines.append({**li, "quantity": quantity})
+    return lines
+
+
 def _release_stock(db, line_items: list) -> None:
     """Return stock for each line (products or packages deleted since are skipped)."""
     for li in line_items:
@@ -370,6 +395,19 @@ def count_orders_for_user(user_id: int) -> int:
     return int(r["c"])
 
 
+def count_open_unpaid_orders(email: str) -> int:
+    """Pending, unpaid orders for an email address (each one holds stock)."""
+    db = get_db()
+    r = db.execute(
+        """
+        SELECT COUNT(*) AS c FROM orders
+        WHERE user_email = ? AND fulfillment_status = 'pending' AND paid_at IS NULL
+        """,
+        ((email or "").strip().lower(),),
+    ).fetchone()
+    return int(r["c"])
+
+
 def sales_report(days: int = 30) -> dict:
     """
     Order figures for the last `days` days (UTC), cancelled orders excluded:
@@ -465,7 +503,8 @@ def update_order_fulfillment(
     """
     Cancelling an order returns its stock; un-cancelling reserves it again
     (raises OutOfStockError if the stock is no longer available). Orders placed
-    before stock tracking (stock_reserved = 0) never touch stock.
+    before stock tracking (stock_reserved = 0) never touch stock, and units
+    whose codes were handed out never return to it (see _stock_lines).
     expected_status: the status the caller based its decision on; raises
     OrderChangedError when the order has moved on since (stale form, double
     submit, concurrent change).
@@ -505,7 +544,7 @@ def update_order_fulfillment(
             if claimed != 1:
                 raise OrderChangedError(order_id)
         if row["stock_reserved"] and was_cancelled != now_cancelled:
-            items = _order_items_for(order_id)
+            items = _stock_lines(db, order_id)
             if now_cancelled:
                 _release_stock(db, items)
             else:
