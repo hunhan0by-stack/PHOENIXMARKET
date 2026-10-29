@@ -53,7 +53,7 @@ def create_coupon(data: dict) -> int | None:
     db = get_db()
     try:
         cur = db.execute(
-            f"INSERT INTO coupons ({', '.join(COUPON_FIELDS)}, created_at) VALUES ({', '.join('?' * (len(COUPON_FIELDS) + 1))})",
+            f"INSERT INTO coupons ({', '.join(COUPON_FIELDS)}, created_at) VALUES ({', '.join('?' * (len(COUPON_FIELDS) + 1))})",  # nosec B608 - column names from COUPON_FIELDS
             _coupon_values(data) + [datetime.now(timezone.utc).isoformat()],
         )
     except sqlite3.IntegrityError:
@@ -68,7 +68,7 @@ def update_coupon(coupon_id: int, data: dict) -> bool:
     db = get_db()
     try:
         db.execute(
-            f"UPDATE coupons SET {', '.join(f'{f} = ?' for f in COUPON_FIELDS)} WHERE id = ?",
+            f"UPDATE coupons SET {', '.join(f'{f} = ?' for f in COUPON_FIELDS)} WHERE id = ?",  # nosec B608 - column names from COUPON_FIELDS
             _coupon_values(data) + [coupon_id],
         )
     except sqlite3.IntegrityError:

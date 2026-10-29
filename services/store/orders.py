@@ -194,7 +194,7 @@ def _reserve_stock(db, line_items: list, require_active: bool = True) -> None:
                 f"""
                 UPDATE product_variants SET stock = stock - ?
                 WHERE id = ? AND product_id = ? AND stock >= ? {active_clause}
-                """,
+                """,  # nosec B608 - active_clause is a constant
                 (qty, int(li["variant_id"]), int(li["product_id"]), qty),
             )
         else:
@@ -206,7 +206,7 @@ def _reserve_stock(db, line_items: list, require_active: bool = True) -> None:
                 if require_active else ""
             )
             cur = db.execute(
-                f"UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ? {status_clause}",
+                f"UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ? {status_clause}",  # nosec B608 - status_clause is a constant
                 (qty, int(li["product_id"]), qty),
             )
         if cur.rowcount != 1:
@@ -314,7 +314,7 @@ def _order_filters(status: str | None, q: str | None):
 def count_orders_filtered(status: str | None = None, q: str | None = None) -> int:
     sql_where, params = _order_filters(status, q)
     db = get_db()
-    return int(db.execute(f"SELECT COUNT(*) AS c FROM orders {sql_where}", params).fetchone()["c"])
+    return int(db.execute(f"SELECT COUNT(*) AS c FROM orders {sql_where}", params).fetchone()["c"])  # nosec B608 - WHERE built from constants; values are parameters
 
 
 def search_orders(
@@ -328,7 +328,7 @@ def search_orders(
     sql_where, params = _order_filters(status, q)
     db = get_db()
     rows = db.execute(
-        f"SELECT * FROM orders {sql_where} ORDER BY id DESC LIMIT ? OFFSET ?",
+        f"SELECT * FROM orders {sql_where} ORDER BY id DESC LIMIT ? OFFSET ?",  # nosec B608 - WHERE built from constants; values are parameters
         params + [limit, offset],
     ).fetchall()
     return [_order_from_row(r, include_items) for r in rows]

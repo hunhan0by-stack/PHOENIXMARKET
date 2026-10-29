@@ -1,5 +1,6 @@
 """Security audit log: what is recorded, and that secrets never are."""
 import re
+import time
 from pathlib import Path
 
 import services.store as store
@@ -45,7 +46,7 @@ def test_payment_delivery_and_code_stock_are_recorded_without_codes(client, admi
 
 def test_two_step_changes_are_recorded_without_the_secret(admin):
     secret = in_app(totp.pending_secret)
-    admin.post("/admin/security/enable", {"code": totp.code_at(secret, int(__import__("time").time() // 30))})
+    admin.post("/admin/security/enable", {"code": totp.code_at(secret, int(time.time() // 30))})
     assert events("admin_2fa_enabled")
     assert secret not in all_logged_text()
 

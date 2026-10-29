@@ -1,0 +1,32 @@
+# Tests, known-vulnerability scan and static security scan on every push and
+# pull request. Uses no secrets and only read access to the repository; the
+# test suite runs against a throw-away database (tests/conftest.py).
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Tests
+        run: python -m pytest -q -p no:cacheprovider
+      - name: Known vulnerabilities (pip-audit)
+        run: python -m pip_audit -r requirements.txt
+      - name: Static security scan (bandit)
+        run: python -m bandit -q -r app.py wsgi.py services views scripts -s B105

@@ -262,7 +262,7 @@ def update_product(product_id: int, data: dict) -> None:
     values.append(now)
     values.append(product_id)
     db.execute(
-        f"UPDATE products SET {', '.join(fields)} WHERE id = ?",
+        f"UPDATE products SET {', '.join(fields)} WHERE id = ?",  # nosec B608 - column names from the fixed mapping above
         values,
     )
     db.commit()

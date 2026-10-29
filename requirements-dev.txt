@@ -2,3 +2,5 @@
 pytest>=8,<9
 # Known-vulnerability check for requirements.txt (scripts/check.ps1 runs it)
 pip-audit>=2.7,<3
+# Static security scan of the source (scripts/check.ps1 and CI run it)
+bandit>=1.7,<2
