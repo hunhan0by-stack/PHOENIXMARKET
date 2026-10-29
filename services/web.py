@@ -184,6 +184,15 @@ def safe_back(fallback_endpoint: str = "shop.index", **values):
     return redirect(url_for(fallback_endpoint, **values))
 
 
+def is_http_url(url: str, max_length: int) -> bool:
+    """An absolute http(s) link without spaces, at most max_length characters."""
+    parsed = urlparse(url)
+    return (
+        parsed.scheme in ("http", "https") and bool(parsed.netloc)
+        and len(url) <= max_length and not any(ch.isspace() for ch in url)
+    )
+
+
 def safe_next(target: str | None, fallback_url: str) -> str:
     """target if it is a local path ("/..."), else fallback_url (no open redirects)."""
     target = (target or "").strip()

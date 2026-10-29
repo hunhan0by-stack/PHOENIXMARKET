@@ -2,7 +2,8 @@
 
 {{ t('email_owner_customer') }}: {{ order.full_name }} <{{ order.user_email }}>
 {% for item in order.line_items %}- {{ item.display_name }}: {{ item.quantity }} x ${{ "%.2f"|format(item.price) }}
-{% endfor %}{% if order.discount_usd %}{{ t('cart_discount').format(code=order.coupon_code) }}: -${{ "%.2f"|format(order.discount_usd) }}
+{% for input in item.inputs %}  {{ input.label }}: {{ input.value }}
+{% endfor %}{% endfor %}{% if order.discount_usd %}{{ t('cart_discount').format(code=order.coupon_code) }}: -${{ "%.2f"|format(order.discount_usd) }}
 {% endif %}{{ t('order_total_label') }}: ${{ "%.2f"|format(order.total_price) }}
 {% if order.notes %}
 {{ t('email_owner_notes') }}:

@@ -100,9 +100,14 @@
           <p class="text-xs text-slate-500 mb-2">{{ t('adm_line_items') }}</p>
           <ul class="space-y-1 text-xs">
             {% for item in order.line_items %}
-            <li class="flex justify-between gap-2">
-              <span>{{ item.display_name }}</span>
-              <span class="text-slate-500">{{ item.quantity }} × ${{ "%.2f"|format(item.price) }}</span>
+            <li>
+              <div class="flex justify-between gap-2">
+                <span>{{ item.display_name }}</span>
+                <span class="text-slate-500">{{ item.quantity }} × ${{ "%.2f"|format(item.price) }}</span>
+              </div>
+              {% for input in item.inputs %}
+                <p class="mt-0.5 break-all text-slate-500">{{ input.label }}: <span class="font-mono text-slate-100">{{ input.value }}</span></p>
+              {% endfor %}
             </li>
             {% endfor %}
           </ul>

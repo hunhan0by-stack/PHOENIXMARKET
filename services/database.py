@@ -286,6 +286,12 @@ def init_schema():
     # Promised delivery time in hours after the payment is confirmed (NULL = not stated)
     _ensure_column(db, "products", "delivery_hours", "delivery_hours INTEGER")
     _ensure_column(db, "product_variants", "payment_url", "payment_url TEXT")
+    # What the customer must enter at checkout for this listing (e.g. the
+    # Instagram username): JSON list of {label, kind: text|url, required}
+    _ensure_column(db, "products", "order_fields", "order_fields TEXT")
+    # The customer's answers to those fields for this line: JSON list of
+    # {label, value}, labels as they were when the order was placed
+    _ensure_column(db, "order_items", "customer_inputs", "customer_inputs TEXT")
     db.execute("CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id)")
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_orders_payment_due "

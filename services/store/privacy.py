@@ -29,7 +29,10 @@ def export_account_data(user_id: int) -> dict:
             "total_usd": o["total_price"], "discount_usd": o["discount_usd"], "coupon": o["coupon_code"],
             "paid_at": _iso(o["paid_at"]), "terms_accepted_at": _iso(o["terms_accepted_at"]),
             "items": [
-                {"name": li["display_name"], "quantity": li["quantity"], "unit_price_usd": li["price"]}
+                {
+                    "name": li["display_name"], "quantity": li["quantity"], "unit_price_usd": li["price"],
+                    "details": li["inputs"],
+                }
                 for li in o["line_items"]
             ],
         }

@@ -1,14 +1,16 @@
 """
 Listings, packages (variants) and categories; favourites and back-in-stock alerts.
 """
+import json
 from datetime import datetime, timezone
 
 from services.database import get_db
-from services.store.base import LOW_STOCK_THRESHOLD, _parse_dt
+from services.store.base import LOW_STOCK_THRESHOLD, _json_list, _parse_dt
 
 
 def _product_from_row(row) -> dict:
     d = dict(row)
+    d["order_fields"] = _json_list(d.get("order_fields"))
     d["created_at"] = _parse_dt(d.get("created_at")) or datetime.now(timezone.utc)
     d["updated_at"] = _parse_dt(d.get("updated_at")) or datetime.now(timezone.utc)
     d["avg_rating"] = round(float(d.get("avg_rating") or 0), 1)
@@ -197,8 +199,8 @@ def create_product(data: dict) -> int:
         INSERT INTO products (
             name, slug, description, base_price, base_currency, listing_language,
             category, image, stock, status, owner, created_at, updated_at, payment_url,
-            delivery_hours
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            delivery_hours, order_fields
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             data["name"],
@@ -216,6 +218,7 @@ def create_product(data: dict) -> int:
             now,
             data.get("payment_url") or None,
             data.get("delivery_hours"),
+            json.dumps(data["order_fields"], ensure_ascii=False) if data.get("order_fields") else None,
         ),
     )
     db.commit()
@@ -244,6 +247,9 @@ def update_product(product_id: int, data: dict) -> None:
         if key in data:
             fields.append(f"{col} = ?")
             values.append(data[key])
+    if "order_fields" in data:
+        fields.append("order_fields = ?")
+        values.append(json.dumps(data["order_fields"], ensure_ascii=False) if data["order_fields"] else None)
     if "image_path" in data and data["image_path"]:
         fields.append("image = ?")
         values.append(data["image_path"])

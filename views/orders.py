@@ -35,6 +35,7 @@ import services.legal as legal
 from services.currency import convert, format_price
 from services.money import money
 import services.notifications as notifications
+import services.order_fields as order_fields
 import services.payments as payments
 from services.ratelimit import RateLimiter
 import services.store as store
@@ -231,6 +232,7 @@ def checkout():
     }
     user = current_user()
     form = {"full_name": "", "email": user["email"] if user else "", "notes": ""}
+    order_fields.attach_to_items(items, request.form if request.method == "POST" else None)
 
     if request.method == "POST":
         full_name = request.form.get("full_name", "").strip()
@@ -239,12 +241,15 @@ def checkout():
         form = {"full_name": full_name, "email": email, "notes": notes}
 
         problem = None
+        field_problem, params = order_fields.checkout_problem(items)
         if not full_name or not email:
             problem = "flash_checkout_required"
         elif not EMAIL_RE.match(email):
             problem = "flash_invalid_email"
         elif any(len(form[k]) > n for k, n in CHECKOUT_MAX_LENGTHS.items()):
             problem = "flash_checkout_too_long"
+        elif field_problem:
+            problem = field_problem
         elif not request.form.get("accept_terms"):
             # Distance sales agreement + immediate performance (no withdrawal
             # for services started at the customer's request): explicit consent
@@ -253,7 +258,7 @@ def checkout():
             # A price, package or discount changed since the page was shown
             problem = "flash_checkout_prices_changed"
         if problem:
-            flash(tr_msg(problem), "error")
+            flash(tr_msg(problem, **params), "error")
             return render_template("checkout.html", items=items, form=form, **totals)
 
         tracking_token = str(uuid.uuid4())
@@ -266,6 +271,7 @@ def checkout():
                 "variant_name": item["variant"]["name"] if item["variant"] else None,
                 "quantity": item["qty"],
                 "unit_price_usd": item["unit_price_usd"],
+                "customer_inputs": order_fields.answers(item),
             }
             for item in items
         ]

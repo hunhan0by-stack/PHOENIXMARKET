@@ -1,6 +1,7 @@
 """
 Orders: checkout (atomic stock/coupon reservation), status changes, payments, sales report.
 """
+import json
 from datetime import datetime, timedelta, timezone
 
 from services.database import get_db
@@ -10,6 +11,7 @@ from services.store.base import (
     OrderChangedError,
     OutOfStockError,
     PaymentNotAllowedError,
+    _json_list,
     _like,
     _parse_dt,
 )
@@ -19,7 +21,8 @@ def _order_items_for(order_id: int) -> list:
     db = get_db()
     rows = db.execute(
         """
-        SELECT product_id, product_name, quantity, unit_price_usd, variant_id, variant_name
+        SELECT product_id, product_name, quantity, unit_price_usd, variant_id, variant_name,
+               customer_inputs
         FROM order_items WHERE order_id = ?
         """,
         (order_id,),
@@ -33,6 +36,8 @@ def _order_items_for(order_id: int) -> list:
             "display_name": r["product_name"] + (f" – {r['variant_name']}" if r["variant_name"] else ""),
             "quantity": r["quantity"],
             "price": float(r["unit_price_usd"]),
+            # What the customer entered for the listing's order fields: [{label, value}]
+            "inputs": _json_list(r["customer_inputs"]),
         }
         for r in rows
     ]
@@ -151,8 +156,9 @@ def create_order(
             db.execute(
                 """
                 INSERT INTO order_items
-                    (order_id, product_id, product_name, quantity, unit_price_usd, variant_id, variant_name)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (order_id, product_id, product_name, quantity, unit_price_usd, variant_id, variant_name,
+                     customer_inputs)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     order_id,
@@ -162,6 +168,7 @@ def create_order(
                     float(li["unit_price_usd"]),
                     li.get("variant_id"),
                     li.get("variant_name"),
+                    json.dumps(li["customer_inputs"], ensure_ascii=False) if li.get("customer_inputs") else None,
                 ),
             )
     except Exception:

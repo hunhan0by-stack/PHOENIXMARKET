@@ -2,14 +2,14 @@
 Listings, their packages (1K / 5K / 10K …) and categories.
 """
 import math
-from urllib.parse import urlparse
 
 from flask import current_app, flash, redirect, render_template, request, url_for
 
+import services.order_fields as order_fields
 import services.store as store
 from services.store import unique_slug
 from services.uploads import InvalidImageError, process_listing_image
-from services.web import SUPPORTED_CURRENCIES, SUPPORTED_LOCALES, tr_msg
+from services.web import SUPPORTED_CURRENCIES, SUPPORTED_LOCALES, is_http_url, tr_msg
 from views.admin.base import bp, LISTING_STATUS_CHOICES, notify_back_in_stock_safely
 
 
@@ -73,11 +73,7 @@ def clean_payment_url(raw):
     url = (raw or "").strip()
     if not url:
         return None, None
-    parsed = urlparse(url)
-    if (
-        parsed.scheme not in ("http", "https") or not parsed.netloc
-        or len(url) > PAYMENT_URL_MAX or any(ch.isspace() for ch in url)
-    ):
+    if not is_http_url(url, PAYMENT_URL_MAX):
         return None, "flash_payment_url_invalid"
     return url, None
 
@@ -116,8 +112,11 @@ def parse_listing_form(existing=None):
         "payment_url": (f.get("payment_url") or "").strip(),
         "delivery_hours": (f.get("delivery_hours") or "").strip(),
     }
+    data["order_fields"], fields_problem = order_fields.parse_admin_form(f)
     if not data["name"] or not data["description"] or not data["base_price"]:
         return data, "flash_listing_required"
+    if fields_problem:
+        return data, fields_problem
     if data["delivery_hours"]:
         try:
             data["delivery_hours"] = int(data["delivery_hours"])

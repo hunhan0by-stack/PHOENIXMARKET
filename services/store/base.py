@@ -1,6 +1,7 @@
 """
-Shared helpers and errors: dates, slugs, LIKE escaping, exceptions.
+Shared helpers and errors: dates, slugs, LIKE escaping, JSON columns, exceptions.
 """
+import json
 import re
 from datetime import datetime, timezone
 
@@ -52,6 +53,15 @@ def _parse_dt(val):
         return datetime.fromisoformat(s)
     except ValueError:
         return None
+
+
+def _json_list(raw) -> list:
+    """A JSON list column as a list; empty for NULL or anything unreadable."""
+    try:
+        value = json.loads(raw) if raw else []
+    except ValueError:
+        return []
+    return value if isinstance(value, list) else []
 
 
 def _like(text: str) -> str:

@@ -59,7 +59,11 @@ def orders_csv():
         "paid_at", "payment_ref",
     ])
     for o in rows:
-        items = "; ".join(f"{li['display_name']} x{li['quantity']}" for li in o["line_items"])
+        items = "; ".join(
+            f"{li['display_name']} x{li['quantity']}"
+            + "".join(f" [{i['label']}: {i['value']}]" for i in li["inputs"])
+            for li in o["line_items"]
+        )
         writer.writerow([
             o["id"],
             o["created_at"].strftime("%Y-%m-%d %H:%M") if o["created_at"] else "",

@@ -91,6 +91,28 @@
         <input id="payment_url" type="url" name="payment_url" maxlength="500" value="{{ product.payment_url or '' if product else '' }}" placeholder="https://www.itemsatis.com/…" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
         <p class="mt-1 text-[11px] text-slate-500">{{ t('adm_payment_url_hint') }}</p>
       </div>
+      <fieldset>
+        <legend class="block text-xs font-medium text-slate-300 mb-1">{{ t('adm_order_fields') }}</legend>
+        <p class="mb-2 text-[11px] text-slate-500">{{ t('adm_order_fields_hint') }}</p>
+        {% set saved_fields = (product.order_fields if product else none) or [] %}
+        <div class="space-y-2">
+          {% for i in range(3) %}
+            {% set of = saved_fields[i] if i < saved_fields|length else none %}
+            <div class="grid grid-cols-2 items-center gap-2 md:grid-cols-[minmax(0,2fr)_6rem_5rem_4rem_4.5rem_auto]">
+              <label class="col-span-2 md:col-span-1"><span class="sr-only">{{ t('adm_order_field_label') }} {{ i + 1 }}</span>
+                <input type="text" name="field_label_{{ i }}" value="{{ of.label if of else '' }}" maxlength="60" placeholder="{{ t('adm_order_field_label') }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none"></label>
+              <label><span class="sr-only">{{ t('adm_order_field_kind') }} {{ i + 1 }}</span>
+                <select name="field_kind_{{ i }}" class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-brandOrange focus:outline-none">
+                  <option value="text" {% if not of or of.kind != 'url' %}selected{% endif %}>{{ t('adm_order_field_kind_text') }}</option>
+                  <option value="url" {% if of and of.kind == 'url' %}selected{% endif %}>{{ t('adm_order_field_kind_url') }}</option>
+                </select></label>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-300">
+                <input type="checkbox" name="field_required_{{ i }}" value="1" {% if not of or of.required %}checked{% endif %} class="h-4 w-4 accent-orange-500">
+                <span>{{ t('adm_order_field_required') }}</span></label>
+            </div>
+          {% endfor %}
+        </div>
+      </fieldset>
 
       {% if product and product.has_variants %}
         <p class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-200">
