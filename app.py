@@ -115,8 +115,9 @@ app.config["ADMIN_PASSWORD"] = ADMIN_PASSWORD
 DATA_DIR = app_root / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 app.config["DATABASE_PATH"] = os.getenv("DATABASE_PATH", str(DATA_DIR / "phoenixmarket.db"))
-# Language for first-time visitors and search engines ("en" or "tr")
-app.config["DEFAULT_LOCALE"] = (os.getenv("DEFAULT_LOCALE") or "en").strip().lower()
+# Language for first-time visitors and search engines ("tr" or "en"); the
+# shop is Turkish-first, so Turkish unless DEFAULT_LOCALE says otherwise
+app.config["DEFAULT_LOCALE"] = (os.getenv("DEFAULT_LOCALE") or "tr").strip().lower()
 
 # Daily database copies; default is a "backups" folder next to the database
 app.config["BACKUP_DIR"] = os.getenv("BACKUP_DIR") or None
@@ -158,7 +159,8 @@ except ValueError:
 register_db(app)
 with app.app_context():
     init_schema()
-    store.seed_if_empty(itemsatis_url)
+    # In production the demo listings start inactive: nothing is sold by accident
+    store.seed_if_empty(itemsatis_url, demo_listings_active=not _IS_PRODUCTION)
     store.migrate_listing_images_png_to_jpg()
     store.maybe_migrate_analytics_json(DATA_DIR)
     # Raw IPs / user agents recorded before anonymisation (no-op afterwards)

@@ -157,12 +157,27 @@ def migrate_listing_images_png_to_jpg() -> None:
     db.commit()
 
 
-def seed_if_empty(default_itemsatis: str) -> None:
+SEEDED_KEY = "seed.catalog_done"
+
+
+def seed_if_empty(default_itemsatis: str, demo_listings_active: bool = True) -> None:
+    """First start of a database: demo catalog, its categories and default settings.
+
+    Runs once per database (SEEDED_KEY): a catalog the owner emptied later is
+    never refilled with demo listings on the next restart. In production
+    (demo_listings_active=False) the demo listings start inactive, so nothing
+    is for sale before the owner has reviewed it.
+    """
     db = get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    if db.execute("SELECT 1 FROM app_config WHERE key = ?", (SEEDED_KEY,)).fetchone():
+        return
     n = db.execute("SELECT COUNT(*) AS c FROM products").fetchone()["c"]
     if n > 0:
+        # A database from before the marker: it has its catalog, remember that
+        db.execute("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", (SEEDED_KEY, now))
+        db.commit()
         return
-    now = datetime.now(timezone.utc).isoformat()
     seed_products = [
         {
             "name": "Canva Pro Subscription",
@@ -235,7 +250,7 @@ def seed_if_empty(default_itemsatis: str) -> None:
                 p["category"],
                 p["image"],
                 p["stock"],
-                p["status"],
+                p["status"] if demo_listings_active else "inactive",
                 p["owner"],
                 now,
                 now,
@@ -272,4 +287,5 @@ def seed_if_empty(default_itemsatis: str) -> None:
         "INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)",
         ("site_settings.support_discord", "YourDiscordTag#0000"),
     )
+    db.execute("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", (SEEDED_KEY, now))
     db.commit()

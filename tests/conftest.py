@@ -28,6 +28,9 @@ os.environ.update(
         "RENDER": "",
         "FLASK_ENV": "",
         "OPENAI_API_KEY": "",
+        # The suite was written against English pages; the shop's own default
+        # is Turkish (tests/test_seo_languages.py checks that separately)
+        "DEFAULT_LOCALE": "en",
     }
 )
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

@@ -89,9 +89,9 @@ def delivery_label(hours, locale):
 
 
 def default_locale() -> str:
-    """Language for visitors without a choice (and for search engines): DEFAULT_LOCALE."""
-    loc = current_app.config.get("DEFAULT_LOCALE") or "en"
-    return loc if loc in SUPPORTED_LOCALES else "en"
+    """Language for visitors without a choice (and for search engines): DEFAULT_LOCALE, Turkish when unset."""
+    loc = current_app.config.get("DEFAULT_LOCALE") or "tr"
+    return loc if loc in SUPPORTED_LOCALES else "tr"
 
 
 def get_current_locale():

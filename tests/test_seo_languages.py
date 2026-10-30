@@ -22,6 +22,25 @@ def head_links(html):
     return (canonical.group(1) if canonical else None), alternates
 
 
+def test_shop_is_turkish_first_without_configuration(make_client, monkeypatch):
+    """No DEFAULT_LOCALE (or an unknown one): first-time visitors and crawlers get Turkish."""
+    from services.web import default_locale
+
+    for value in (None, "", "xx"):
+        monkeypatch.setitem(app.config, "DEFAULT_LOCALE", value)
+        with app.app_context():
+            assert default_locale() == "tr"
+    monkeypatch.setitem(app.config, "DEFAULT_LOCALE", None)
+    assert '<html lang="tr">' in make_client().html("/")
+
+
+def test_render_blueprint_sets_turkish_default():
+    from pathlib import Path
+
+    blueprint = (Path(app.root_path) / "render.yaml").read_text(encoding="utf-8")
+    assert re.search(r"- key: DEFAULT_LOCALE\s+value: tr", blueprint)
+
+
 def test_search_engines_can_reach_the_turkish_pages(make_client):
     crawler = make_client()  # no cookies, like a search engine
     assert '<html lang="en">' in crawler.html("/products")

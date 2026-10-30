@@ -35,6 +35,18 @@ def table_counts(path: Path) -> dict:
         conn.close()
 
 
+# Settings rows that start-up may add to an existing database (never change or remove)
+NEW_CONFIG_KEYS = {"seed.catalog_done"}
+
+
+def config_rows(path: Path) -> dict:
+    conn = sqlite3.connect(path)
+    try:
+        return dict(conn.execute("SELECT key, value FROM app_config"))
+    finally:
+        conn.close()
+
+
 def columns(path: Path) -> set:
     conn = sqlite3.connect(path)
     try:
@@ -63,6 +75,7 @@ def main() -> int:
     print(f"copy   : {copy}")
 
     before_counts, before_columns = table_counts(copy), columns(copy)
+    before_config = config_rows(copy) if "app_config" in before_counts else {}
     os.environ.update({
         "DATABASE_PATH": str(copy),
         "UPLOAD_DIR": str(work / "uploads"),
@@ -88,13 +101,24 @@ def main() -> int:
     print("\nnew tables :", ", ".join(new_tables) or "none")
     print("new columns in existing tables:", ", ".join(added) or "none")
     print("\nrow counts (before -> after):")
+    after_config = config_rows(copy)
+    # Settings: every existing key keeps its value; only known start-up keys may be added
+    config_kept = all(after_config.get(k) == v for k, v in before_config.items())
+    config_added = set(after_config) - set(before_config)
+    config_ok = config_kept and config_added <= NEW_CONFIG_KEYS
     for table in sorted(before_counts):
         changed = before_counts[table] != after_counts.get(table)
-        # visits may shrink (privacy retention); everything else must be identical
-        flag = "" if not changed else ("  (retention)" if table == "visits" else "  << CHANGED")
+        if table == "app_config":
+            flag = "" if not changed and config_ok else (
+                f"  (added: {', '.join(sorted(config_added))}; existing rows unchanged)" if config_ok else "  << CHANGED"
+            )
+            ok &= config_ok
+        else:
+            # visits may shrink (privacy retention); everything else must be identical
+            flag = "" if not changed else ("  (retention)" if table == "visits" else "  << CHANGED")
+            if changed and table != "visits":
+                ok = False
         print(f"  {table:<20} {before_counts[table]:>7} -> {after_counts.get(table, 0):>7}{flag}")
-        if changed and table != "visits":
-            ok = False
 
     print("\npages:")
     client = app.test_client()

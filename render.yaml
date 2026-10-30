@@ -3,7 +3,7 @@
 # Optional: OPENAI_API_KEY (AI answers in the support chat; FAQ answers otherwise)
 # Optional: SMTP_HOST, SMTP_PORT (587), SMTP_USER, SMTP_PASSWORD, MAIL_FROM, SMTP_SSL (for 465),
 #           SMTP_STARTTLS – deliver order/reset emails; without them emails appear under Admin → Emails
-# Optional: TRUSTED_HOSTS (e.g. "shop.example,www.shop.example"), DEFAULT_LOCALE=tr,
+# Optional: TRUSTED_HOSTS (e.g. "shop.example,www.shop.example"),
 #           PENDING_ORDER_TTL_HOURS, DELIVERY_RETENTION_DAYS, OUTBOX_RETENTION_DAYS
 # Keep --workers 1: login/checkout/chat rate limits are kept in process memory.
 #
@@ -39,3 +39,6 @@ services:
         value: /var/data/uploads
       - key: BACKUP_DIR
         value: /var/data/backups
+      # Turkish-first: language for first-time visitors and search engines
+      - key: DEFAULT_LOCALE
+        value: tr
