@@ -7,6 +7,7 @@ import io
 from PIL import Image
 
 from app import app
+import services.legal as legal
 from services.ratelimit import RateLimiter
 import services.store as store
 
@@ -25,8 +26,21 @@ def in_app(fn, *args, **kwargs):
         return fn(*args, **kwargs)
 
 
-def reset_state():
-    """Empty every table, re-seed the catalog and forget rate-limit hits."""
+# Sample seller (fictitious) so the checkout gate lets test orders through
+TEST_SELLER = {"name": "Test Satıcı Ltd.", "address": "Test Cad. 1, İstanbul", "tax_id": "Test VD 0000000000", "phone": ""}
+TEST_SUPPORT_EMAIL = "destek@phoenixmarket.test"
+
+
+def open_shop_for_sales():
+    """Complete the seller details and review the current legal texts (sales open)."""
+    with app.app_context():
+        legal.save_seller_info(TEST_SELLER)
+        store.set_config("site_settings.support_email", TEST_SUPPORT_EMAIL)
+        legal.set_texts_reviewed(True)
+
+
+def reset_state(open_sales: bool = True):
+    """Empty every table, re-seed the catalog and forget rate-limit hits; open sales unless told not to."""
     app.config["ITEMSATIS_REDIRECT_URL"] = ITEMSATIS_URL
     with app.app_context():
         db = store.get_db()
@@ -44,6 +58,8 @@ def reset_state():
         db.execute("PRAGMA foreign_keys=ON")
         store.seed_if_empty(ITEMSATIS_URL)
     RateLimiter.reset_all()
+    if open_sales:
+        open_shop_for_sales()
 
 
 def stock_of(product_id):

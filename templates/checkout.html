@@ -11,6 +11,13 @@
     </h1>
 
     <div class="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      {% if sales_closed %}
+      <div class="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-sm" role="status">
+        <h2 class="text-sm font-semibold text-amber-200">{{ t('sales_closed_title') }}</h2>
+        <p class="mt-2 text-slate-300">{{ t('sales_closed_body') }}</p>
+        <a href="{{ url_for('orders.cart') }}" class="mt-4 inline-block text-xs text-brandOrange underline hover:text-amber-200">{{ t('sales_closed_back') }}</a>
+      </div>
+      {% else %}
       <form method="post" class="space-y-4 rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm">
         {{ csrf_field() }}
         <input type="hidden" name="quote" value="{{ quote }}">
@@ -61,6 +68,7 @@
           {{ site_content.checkout_button_label }}
         </button>
       </form>
+      {% endif %}
 
       <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-5 text-sm text-slate-200">
         <h2 class="text-sm font-semibold text-slate-100 mb-3">{{ t('cart_order_summary') }}</h2>

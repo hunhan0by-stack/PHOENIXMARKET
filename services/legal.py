@@ -3,10 +3,14 @@ Legal pages (privacy / KVKK notice, distance sales agreement, returns and
 delivery, cookies) and the seller details they are built from.
 
 The texts in templates/legal/ are templates, not legal advice: the owner
-fills in the seller details (Admin → Settings) and has the texts reviewed;
-the dashboard reminds them until both are done. LEGAL_VERSION is stored on
-every order with the time the customer accepted the terms, so it must be
-bumped whenever the texts change.
+fills in the seller details (Admin → Settings) and has the texts reviewed.
+Until both are done no new order can be placed (checkout_blockers). The
+review is tied to LEGAL_VERSION, which is stored on every order with the
+time the customer accepted the terms: bumping it whenever the texts change
+asks for a new review and closes sales until it is given.
+
+The review checkbox records the owner's confirmation only; it is not a
+statement that the texts are legally sufficient.
 """
 import services.store as store
 
@@ -49,3 +53,20 @@ def texts_reviewed() -> bool:
 
 def set_texts_reviewed(reviewed: bool) -> None:
     store.set_config(REVIEWED_KEY, LEGAL_VERSION if reviewed else "")
+
+
+# Marker for checkout_blockers(): the current LEGAL_VERSION was not marked as reviewed
+NOT_REVIEWED = "texts_reviewed"
+
+
+def checkout_blockers() -> list:
+    """Why new orders cannot be placed right now; empty when sales are open.
+
+    Missing seller details (missing_seller_fields: name, address, tax_id,
+    email) and NOT_REVIEWED when the current texts have not been reviewed.
+    Checked on the server before an order is created (views/orders.py).
+    """
+    blockers = missing_seller_fields()
+    if not texts_reviewed():
+        blockers.append(NOT_REVIEWED)
+    return blockers

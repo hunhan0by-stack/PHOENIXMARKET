@@ -38,10 +38,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tests.helpers import ITEMSATIS_URL, Client, reset_state  # noqa: E402
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "sales_closed: start without seller details or legal review (checkout is closed)",
+    )
+
+
 @pytest.fixture(autouse=True)
-def fresh_state():
-    """Every test starts from the seeded catalog with no users, orders or limits."""
-    reset_state()
+def fresh_state(request):
+    """Every test starts from the seeded catalog with no users, orders or limits.
+
+    Sales are open (sample seller details, current texts reviewed) unless the
+    test is marked sales_closed, so the checkout gate can be tested on its own.
+    """
+    reset_state(open_sales=request.node.get_closest_marker("sales_closed") is None)
     yield
 
 

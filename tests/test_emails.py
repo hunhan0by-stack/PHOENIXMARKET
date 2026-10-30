@@ -70,7 +70,8 @@ def test_smtp_delivery_and_failure(client, smtp):
     place_order(client)
     [email] = outbox("order_confirmation")
     assert email["status"] == "sent" and email["sent_at"]
-    [message] = smtp.sent
+    # The shop owner is notified too (sales need a real support address)
+    [message] = [m for m in smtp.sent if m["To"] == "buyer@x.com"]
     assert message["To"] == "buyer@x.com" and message["From"] == "shop@pm.test"
     assert message.get_body(("html",)) is not None
 
@@ -149,7 +150,7 @@ def test_admin_outbox_pages(client, admin):
     place_order(client)
     html = admin.html("/admin/emails")
     assert "buyer@x.com" in html and "logged" in html and "SMTP is not configured" in html
-    email_id = outbox()[0]["id"]
+    email_id = outbox("order_confirmation")[0]["id"]
     detail = admin.html(f"/admin/emails/{email_id}")
     assert "/track/" in detail
     assert client.get("/admin/emails").headers["Location"].endswith("/admin/login")

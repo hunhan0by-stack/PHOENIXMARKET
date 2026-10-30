@@ -25,9 +25,16 @@ def place_order(client, email="buyer@x.com"):
 
 
 def test_no_owner_email_while_address_is_a_placeholder(client):
-    place_order(client)
-    assert outbox("owner_new_order") == []
-    assert len(outbox("order_confirmation")) == 1
+    order_id = place_order(client)
+    # A placeholder support address closes sales (checkout gate): no new order at all ...
+    in_app(store.set_config, "site_settings.support_email", "contact@phoenixmarket.example")
+    client.post("/cart/add/2")
+    r = client.post("/checkout", {"full_name": "Buyer", "email": "late@x.com"})
+    assert r.status_code == 503 and in_app(store.count_orders) == 1
+    # ... and the notification itself never writes to a placeholder address
+    before = len(outbox("owner_new_order"))
+    assert in_app(lambda: notifications.send_new_order_owner(store.get_order_by_id(order_id))) is None
+    assert len(outbox("owner_new_order")) == before
 
 
 def test_owner_is_told_about_each_new_order(client, admin):

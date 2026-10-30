@@ -40,7 +40,11 @@ deployed on Render with gunicorn.
   ("Payment received"), which moves the order to processing.
 - **Legal:** privacy/KVKK notice, distance sales agreement, returns and cookie
   pages (TR/EN templates filled with the seller details from Settings); the
-  customer's consent is required and recorded with each order.
+  customer's consent is required and recorded with each order. Sales stay
+  closed (no new orders; existing orders unaffected) until the seller details
+  and support email are complete and the admin has marked the current text
+  version as reviewed; a new `LEGAL_VERSION` asks for a new review. The review
+  is the owner's own confirmation, not a guarantee of legal compliance.
 - **Privacy-friendly analytics:** no IP addresses or cookies; daily-rotating
   anonymous visitor ids, bots excluded, page views kept 90 days.
 - **Email:** every message is stored in an outbox; sent via SMTP when configured.

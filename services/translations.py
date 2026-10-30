@@ -770,6 +770,10 @@ TRANSLATIONS = {
         "adm_legal_missing": "Legal pages: missing",
         "adm_legal_not_reviewed": "The legal texts are templates and have not been marked as reviewed.",
         "adm_legal_fix": "Complete in Settings",
+        "adm_sales_closed": "Sales are temporarily closed: no new order can be placed until the seller details are complete and the current legal texts are marked as reviewed. Existing orders work as usual.",
+        "sales_closed_title": "We are not taking new orders right now",
+        "sales_closed_body": "Please try again later or contact us. Your cart has been kept.",
+        "sales_closed_back": "Back to cart",
         "adm_terms_accepted_colon": "Terms accepted:",
         "adm_terms_version": "version {version}",
         # Delivery time and trust info on the product page
@@ -1670,6 +1674,10 @@ TRANSLATIONS = {
         "adm_legal_missing": "Yasal sayfalar: eksik bilgi:",
         "adm_legal_not_reviewed": "Yasal metinler şablon ve henüz gözden geçirildi olarak işaretlenmedi.",
         "adm_legal_fix": "Ayarlar'dan tamamla",
+        "adm_sales_closed": "Satışlar geçici olarak kapalı: satıcı bilgileri tamamlanıp güncel yasal metinler gözden geçirildi olarak işaretlenene kadar yeni sipariş alınamaz. Mevcut siparişler normal şekilde çalışır.",
+        "sales_closed_title": "Şu anda yeni sipariş alamıyoruz",
+        "sales_closed_body": "Lütfen daha sonra tekrar deneyin veya bizimle iletişime geçin. Sepetiniz korunuyor.",
+        "sales_closed_back": "Sepete dön",
         "adm_terms_accepted_colon": "Sözleşme onayı:",
         "adm_terms_version": "sürüm {version}",
         # Delivery time and trust info on the product page

@@ -1,4 +1,6 @@
 """Contact form, owner notification and the admin support inbox."""
+import pytest
+
 import services.store as store
 from tests.helpers import in_app
 
@@ -40,6 +42,7 @@ def test_contact_rate_limit(client):
     assert r.status_code == 429 and in_app(store.count_support_messages) == 5
 
 
+@pytest.mark.sales_closed  # starts with the placeholder support address
 def test_owner_notified_only_for_a_real_address(client, admin):
     client.post("/contact", VALID)
     assert outbox("support_new") == []  # default placeholder address is skipped

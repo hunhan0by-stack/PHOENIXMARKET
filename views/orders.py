@@ -98,6 +98,7 @@ def cart():
     return render_template(
         "cart.html",
         items=items,
+        sales_closed=bool(legal.checkout_blockers()),
         subtotal=subtotal_display,
         coupon=coupon,
         discount=discount_display,
@@ -239,6 +240,17 @@ def checkout():
     user = current_user()
     form = {"full_name": "", "email": user["email"] if user else "", "notes": ""}
     order_fields.attach_to_items(items, request.form if request.method == "POST" else None)
+
+    # Sales are closed until the seller details are complete and the current
+    # legal texts were reviewed: no order, stock, coupon use or email. Checked
+    # here, on the server, before anything of the posted form is used.
+    blockers = legal.checkout_blockers()
+    if blockers:
+        if request.method == "POST":
+            current_app.logger.warning("Checkout refused, sales closed: %s", ", ".join(blockers))
+        return render_template(
+            "checkout.html", items=items, form=form, sales_closed=True, **totals
+        ), (503 if request.method == "POST" else 200)
 
     if request.method == "POST":
         full_name = request.form.get("full_name", "").strip()

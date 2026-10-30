@@ -28,6 +28,7 @@ def test_unknown_legal_page_is_404(client):
     assert client.get("/legal/terms-of-everything").status_code == 404
 
 
+@pytest.mark.sales_closed
 def test_missing_seller_details_are_visible_not_invented(make_client):
     html = make_client(locale="tr").html("/legal/distance-sales")
     assert "[henüz girilmedi]" in html
@@ -79,6 +80,7 @@ def test_footer_and_sitemap_list_the_pages(client):
         assert f"/legal/{page}</loc>" in sitemap
 
 
+@pytest.mark.sales_closed
 def test_dashboard_reminds_until_details_and_review_are_done(admin):
     html = admin.html("/admin/dashboard")
     assert "Legal pages: missing" in html and "have not been marked as reviewed" in html
@@ -104,6 +106,7 @@ def test_admin_order_page_shows_the_consent(client, admin):
     assert "Terms accepted:" in html and f"version {legal.LEGAL_VERSION}" in html
 
 
+@pytest.mark.sales_closed
 def test_legal_settings_are_admin_only(client):
     r = client.post("/admin/settings/legal", SELLER)
     assert r.headers["Location"].endswith("/admin/login")
