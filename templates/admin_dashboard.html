@@ -131,11 +131,11 @@
       <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {% for label, value, hint in [
           (t('adm_orders'), sales.orders, ''),
-          (t('adm_order_value'), '$%.2f'|format(sales.value), ''),
-          (t('adm_completed_revenue'), '$%.2f'|format(sales.completed_revenue), t('adm_completed_revenue_hint')),
-          (t('adm_average_order'), '$%.2f'|format(sales.average_order), ''),
+          (t('adm_order_value'), format_usd(sales.value), ''),
+          (t('adm_completed_revenue'), format_usd(sales.completed_revenue), t('adm_completed_revenue_hint')),
+          (t('adm_average_order'), format_usd(sales.average_order), ''),
           (t('adm_conversion'), '%.1f%%'|format(sales.conversion) if sales.conversion is not none else '—', t('adm_conversion_hint').format(n=sales.visitors) if sales.conversion is not none else t('adm_conversion_unavailable')),
-          (t('adm_discounts_given'), '$%.2f'|format(sales.discount), t('adm_discounts_hint')),
+          (t('adm_discounts_given'), format_usd(sales.discount), t('adm_discounts_hint')),
         ] %}
           <div class="rounded-2xl border border-slate-800 bg-slate-950/80 p-3">
             <p class="text-[11px] text-slate-400">{{ label }}</p>
@@ -150,13 +150,13 @@
         {% set chart_w, chart_h = 600, 140 %}
         {% set bar_w = chart_w / (sales.series|length) %}
         <svg viewBox="0 0 {{ chart_w }} {{ chart_h + 20 }}" class="h-44 w-full" role="img"
-             aria-label="{{ t('adm_chart_aria').format(n=sales.days, total="%.2f"|format(sales.value)) }}">
+             aria-label="{{ t('adm_chart_aria').format(n=sales.days, total=format_amount(sales.value)) }}">
           <line x1="0" y1="{{ chart_h }}" x2="{{ chart_w }}" y2="{{ chart_h }}" stroke="#334155" stroke-width="1" />
           {% for d in sales.series %}
             {% set bar_h = (d.value / sales.max_value * (chart_h - 10)) if sales.max_value else 0 %}
             {% if bar_h > 0 %}
               <rect x="{{ loop.index0 * bar_w + 1 }}" y="{{ chart_h - bar_h }}" width="{{ bar_w - 2 }}" height="{{ bar_h }}" rx="2" fill="#f97316" fill-opacity="0.85">
-                <title>{{ d.date }}: ${{ "%.2f"|format(d.value) }} · {{ t('adm_orders_n').format(n=d.orders) }}</title>
+                <title>{{ d.date }}: {{ format_usd(d.value) }} · {{ t('adm_orders_n').format(n=d.orders) }}</title>
               </rect>
             {% endif %}
             {% if loop.index0 % 5 == 0 or loop.last %}
@@ -176,7 +176,7 @@
                   <tr>
                     <td class="py-1.5 text-slate-100">{{ p.name }}</td>
                     <td class="py-1.5 text-right text-slate-400">× {{ p.quantity }}</td>
-                    <td class="py-1.5 text-right font-semibold text-brandOrange">${{ "%.2f"|format(p.gross) }}</td>
+                    <td class="py-1.5 text-right font-semibold text-brandOrange">{{ format_usd(p.gross) }}</td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -313,7 +313,7 @@
               <tr>
                 <td class="px-3 py-2 text-slate-400">{{ product.id }}</td>
                 <td class="px-3 py-2 text-slate-100">{{ product.name }}</td>
-                <td class="px-3 py-2 text-slate-100">{{ "%.2f"|format(product.base_price or product.price or 0) }} {{ product.base_currency or 'USD' }}</td>
+                <td class="px-3 py-2 text-slate-100">{{ format_amount(product.base_price or product.price or 0) }} {{ product.base_currency or 'USD' }}</td>
               </tr>
             {% endfor %}
           </tbody>

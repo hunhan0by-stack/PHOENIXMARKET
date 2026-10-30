@@ -14,7 +14,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import services.audit as audit
 import services.backup as backup
 import services.config as config_checks
-from services.currency import format_price
+from services.currency import format_amount, format_price, format_usd
 import services.delivery as delivery
 from services.database import init_app as register_db, init_schema
 from services.listing import (
@@ -200,6 +200,9 @@ register_blueprints(app)
 # A global (not a context processor) so order emails rendered outside the
 # customer's request can use it too
 app.jinja_env.globals["customer_time"] = customer_time
+# Amounts written the reader's way (emails pass the order's locale explicitly)
+app.jinja_env.globals["format_usd"] = format_usd
+app.jinja_env.globals["format_amount"] = format_amount
 app.jinja_env.globals["delivery_label"] = delivery_label
 app.jinja_env.globals["localized_url"] = localized_url
 

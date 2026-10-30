@@ -132,10 +132,48 @@ def convert(amount: float, from_currency: str, to_currency: str) -> float:
     return money(usd)
 
 
-def format_price(amount, currency: str = None) -> str:
-    """Format price for display with currency symbol."""
+# -----------------------------------------------------------------------------
+# Display formatting only: amounts are never changed or rounded differently,
+# only written the way the reader's language writes numbers. Turkish uses a
+# dot for thousands and a comma for decimals (1.234,50 ₺); the English output
+# is exactly what it was before Turkish formatting existed.
+# -----------------------------------------------------------------------------
+CURRENCY_SYMBOLS = {"TRY": "₺", "USD": "$", "EUR": "€"}
+
+
+def _display_locale(locale):
+    """The given locale, else the visitor's (inside a request), else English."""
+    if locale:
+        return locale
+    from flask import has_request_context
+
+    if has_request_context():
+        from services.web import get_current_locale  # lazy: services.web imports the store
+
+        return get_current_locale()
+    return "en"
+
+
+def format_amount(amount, locale: str = None) -> str:
+    """Two-decimal number for display: 1.234,50 (tr), 1234.50 (en)."""
+    amt = float(amount or 0)
+    if _display_locale(locale) == "tr":
+        return f"{amt:,.2f}".replace(",", " ").replace(".", ",").replace(" ", ".")
+    return f"{amt:.2f}"
+
+
+def format_price(amount, currency: str = None, locale: str = None) -> str:
+    """Format price for display with currency symbol: 1.234,50 ₺ (tr), 1 234.50 ₺ (en)."""
     amt = float(amount or 0)
     cur = (currency or DEFAULT_CURRENCY).upper()
-    symbols = {"TRY": "₺", "USD": "$", "EUR": "€"}
-    sym = symbols.get(cur, cur)
+    sym = CURRENCY_SYMBOLS.get(cur, cur)
+    if _display_locale(locale) == "tr":
+        return f"{format_amount(amt, 'tr')} {sym}"
     return f"{amt:,.2f} {sym}".replace(",", " ")
+
+
+def format_usd(amount, locale: str = None) -> str:
+    """An order amount (orders are stored in USD): 1.234,50 $ (tr), $1234.50 (en)."""
+    if _display_locale(locale) == "tr":
+        return f"{format_amount(amount, 'tr')} $"
+    return f"${float(amount or 0):.2f}"

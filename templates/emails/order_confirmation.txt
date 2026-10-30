@@ -3,10 +3,10 @@
 {{ t('email_order_intro') }}
 
 {{ t('order_number_label') }}: #{{ order.id }}
-{% for item in order.line_items %}- {{ item.display_name }}: {{ item.quantity }} x ${{ "%.2f"|format(item.price) }}
+{% for item in order.line_items %}- {{ item.display_name }}: {{ item.quantity }} x {{ format_usd(item.price, locale) }}
 {% for input in item.inputs %}  {{ input.label }}: {{ input.value }}
-{% endfor %}{% endfor %}{% if order.discount_usd %}{{ t('cart_discount').format(code=order.coupon_code) }}: -${{ "%.2f"|format(order.discount_usd) }}
-{% endif %}{{ t('order_total_label') }}: ${{ "%.2f"|format(order.total_price) }}
+{% endfor %}{% endfor %}{% if order.discount_usd %}{{ t('cart_discount').format(code=order.coupon_code) }}: -{{ format_usd(order.discount_usd, locale) }}
+{% endif %}{{ t('order_total_label') }}: {{ format_usd(order.total_price, locale) }}
 
 {{ t('order_pay_with_number_before') }} #{{ order.id }} {{ t('order_pay_with_number_after') }}
 {% for link in payment_links %}{{ t('email_pay_cta') }}{% if payment_links|length > 1 %} ({{ link.names|join(', ') }}){% endif %}: {{ link.url }}

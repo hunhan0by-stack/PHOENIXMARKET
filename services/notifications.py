@@ -7,6 +7,7 @@ Admin → Settings. All are sent via services.mailer.
 from flask import render_template, url_for
 from markupsafe import escape
 
+from services.currency import format_amount
 from services.mailer import send_email
 import services.payments as payments
 import services.store as store
@@ -133,7 +134,7 @@ def send_new_order_owner(order: dict):
         admin_url=url_for("admin.order_detail", order_id=order["id"], _external=True),
     )
     subject = translate("email_owner_order_subject", locale).format(
-        id=order["id"], total=f"{order['total_price']:.2f}"
+        id=order["id"], total=format_amount(order["total_price"], locale)
     )
     return send_email(to_address, subject, text, html, kind="owner_new_order")
 

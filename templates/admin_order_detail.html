@@ -153,7 +153,7 @@
             <li>
               <div class="flex justify-between gap-2">
                 <span>{{ item.display_name }}</span>
-                <span class="text-slate-500">{{ item.quantity }} × ${{ "%.2f"|format(item.price) }}</span>
+                <span class="text-slate-500">{{ item.quantity }} × {{ format_usd(item.price) }}</span>
               </div>
               {% for input in item.inputs %}
                 <p class="mt-0.5 break-all text-slate-500">{{ input.label }}: <span class="font-mono text-slate-100">{{ input.value }}</span></p>
@@ -162,9 +162,9 @@
             {% endfor %}
           </ul>
           {% if order.discount_usd %}
-            <p class="mt-2 text-right text-xs text-emerald-300">{{ t('adm_coupon') }} {{ order.coupon_code }}: −${{ "%.2f"|format(order.discount_usd) }}</p>
+            <p class="mt-2 text-right text-xs text-emerald-300">{{ t('adm_coupon') }} {{ order.coupon_code }}: −{{ format_usd(order.discount_usd) }}</p>
           {% endif %}
-          <p class="mt-2 text-right font-semibold text-brandOrange">${{ "%.2f"|format(order.total_price) }}</p>
+          <p class="mt-2 text-right font-semibold text-brandOrange">{{ format_usd(order.total_price) }}</p>
         </div>
       </div>
     </div>

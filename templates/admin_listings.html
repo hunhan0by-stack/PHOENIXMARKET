@@ -103,7 +103,7 @@
               </td>
               <td class="px-3 py-2 text-slate-300">{{ product.category }}</td>
               <td class="px-3 py-2 text-slate-100">
-                {{ "%.2f"|format(product.base_price or product.price or 0) }}{% if product.price_from %}–{{ "%.2f"|format(product.max_price) }}{% endif %} {{ product.base_currency or 'USD' }}
+                {{ format_amount(product.base_price or product.price or 0) }}{% if product.price_from %}–{{ format_amount(product.max_price) }}{% endif %} {{ product.base_currency or 'USD' }}
                 {% if product.has_variants %}
                   <a href="{{ url_for('admin.edit_listing', product_id=product.id) }}#packages" class="block text-[10px] text-slate-400 hover:text-brandOrange">{{ t('admin_packages_count').format(n=product.variant_count) }}</a>
                 {% endif %}

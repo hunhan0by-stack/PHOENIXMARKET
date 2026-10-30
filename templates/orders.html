@@ -22,9 +22,9 @@
             <span class="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-semibold text-brandOrange">{{ t('status_' ~ order.fulfillment_status) }}</span>
           </div>
           <div class="flex flex-col items-end gap-1">
-            <span class="text-sm font-semibold text-brandOrange">{{ "%.2f"|format(order.total_price) }} $</span>
+            <span class="text-sm font-semibold text-brandOrange">{{ format_usd(order.total_price) }}</span>
             {% if order.discount_usd %}
-              <span class="text-[10px] text-emerald-300">{{ t('cart_discount').format(code=order.coupon_code) }}: −{{ "%.2f"|format(order.discount_usd) }} $</span>
+              <span class="text-[10px] text-emerald-300">{{ t('cart_discount').format(code=order.coupon_code) }}: −{{ format_usd(order.discount_usd) }}</span>
             {% endif %}
             <a href="{{ url_for('orders.track', token=order.tracking_token) }}" class="text-[10px] text-brandOrange hover:text-amber-200">{{ t('track_order_cta') }}</a>
           </div>
@@ -33,7 +33,7 @@
           {% for item in order.line_items %}
           <li class="px-4 py-2 flex justify-between items-center text-xs">
             <span class="text-slate-200">{{ item.display_name }}</span>
-            <span class="text-slate-400">{{ item.quantity }} × {{ "%.2f"|format(item.price) }} $</span>
+            <span class="text-slate-400">{{ item.quantity }} × {{ format_usd(item.price) }}</span>
           </li>
           {% endfor %}
         </ul>

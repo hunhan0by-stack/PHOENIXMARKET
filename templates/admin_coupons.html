@@ -31,8 +31,8 @@
             {% for c in coupons %}
               <tr>
                 <td class="px-3 py-2 font-mono">{{ c.code }}</td>
-                <td class="px-3 py-2">{{ '%g%%'|format(c.value) if c.kind == 'percent' else '$%.2f'|format(c.value) }}</td>
-                <td class="px-3 py-2 text-slate-400">{{ '$%.2f'|format(c.min_order_usd) if c.min_order_usd else '—' }}</td>
+                <td class="px-3 py-2">{{ '%g%%'|format(c.value) if c.kind == 'percent' else format_usd(c.value) }}</td>
+                <td class="px-3 py-2 text-slate-400">{{ format_usd(c.min_order_usd) if c.min_order_usd else '—' }}</td>
                 <td class="px-3 py-2 text-slate-400">{{ c.used_count }}{% if c.max_uses is not none %} / {{ c.max_uses }}{% endif %}</td>
                 <td class="px-3 py-2 text-slate-400">
                   {{ c.starts_at.strftime('%Y-%m-%d') if c.starts_at else '…' }} → {{ c.expires_at.strftime('%Y-%m-%d') if c.expires_at else '…' }}
