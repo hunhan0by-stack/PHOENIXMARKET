@@ -28,6 +28,9 @@ if (Test-Path "data/phoenixmarket.db") {
     Write-Host "`n== Migration rehearsal (copy of data/phoenixmarket.db) ==" -ForegroundColor Cyan
     & $Python scripts/rehearse_migration.py
     if ($LASTEXITCODE -ne 0) { Write-Host "REHEARSAL FAILED" -ForegroundColor Red; exit 1 }
+    Write-Host "`n== Encryption rehearsal (copy of data/phoenixmarket.db, throw-away keys) ==" -ForegroundColor Cyan
+    & $Python scripts/rehearse_encryption.py
+    if ($LASTEXITCODE -ne 0) { Write-Host "ENCRYPTION REHEARSAL FAILED" -ForegroundColor Red; exit 1 }
 }
 
 Write-Host "`nALL CHECKS PASSED" -ForegroundColor Green
