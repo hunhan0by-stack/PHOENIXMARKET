@@ -1,5 +1,5 @@
 -r requirements.txt
-pytest>=8,<9
+pytest>=9.0.3,<10
 # Known-vulnerability check for requirements.txt (scripts/check.ps1 runs it)
 pip-audit>=2.7,<3
 # Static security scan of the source (scripts/check.ps1 and CI run it)
@@ -7,4 +7,4 @@ bandit>=1.7,<2
 # Field encryption and encrypted off-site backups (services/crypto.py,
 # services/offsite_backup.py): prepared and tested, not active yet. Moves to
 # requirements.txt when the owner approves turning them on.
-cryptography>=44,<47
+cryptography>=50.0.2,<51

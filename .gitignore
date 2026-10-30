@@ -25,6 +25,8 @@ env/
 *.sqlite-*
 data/analytics.json
 backups/
+*.enc
+*.part
 static/uploads/
 
 # Old copy of the project kept locally for reference only

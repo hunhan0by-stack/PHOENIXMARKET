@@ -15,8 +15,8 @@ Write-Host "== Tests ==" -ForegroundColor Cyan
 & $Python -m pytest -p no:cacheprovider -q
 if ($LASTEXITCODE -ne 0) { Write-Host "TESTS FAILED" -ForegroundColor Red; exit 1 }
 
-Write-Host "`n== Known vulnerabilities in requirements.txt (pip-audit) ==" -ForegroundColor Cyan
-& $Python -m pip_audit -r requirements.txt
+Write-Host "`n== Known vulnerabilities in requirements-dev.txt, which includes requirements.txt (pip-audit) ==" -ForegroundColor Cyan
+& $Python -m pip_audit -r requirements-dev.txt
 if ($LASTEXITCODE -ne 0) { Write-Host "VULNERABLE DEPENDENCIES (or pip-audit missing: pip install -r requirements-dev.txt)" -ForegroundColor Red; exit 1 }
 
 Write-Host "`n== Static security scan (bandit) ==" -ForegroundColor Cyan

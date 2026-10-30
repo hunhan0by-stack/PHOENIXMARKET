@@ -20,7 +20,9 @@ LOW_DISK_BYTES = 200 * 1024 * 1024
 def production_problems(env, on_render: bool) -> list:
     """Messages for every unsafe production setting in env (a mapping like os.environ)."""
     problems = []
-    if len(env.get("SECRET_KEY") or "") < MIN_SECRET_KEY_LENGTH:
+    secret_key = env.get("SECRET_KEY") or ""
+    # "change-me": the placeholders of .env.example, long enough to pass the length check
+    if len(secret_key) < MIN_SECRET_KEY_LENGTH or "change-me" in secret_key.lower():
         problems.append(
             f"SECRET_KEY must be a random value of at least {MIN_SECRET_KEY_LENGTH} characters in production "
             "(e.g. python -c \"import secrets; print(secrets.token_urlsafe(48))\")."
@@ -32,7 +34,8 @@ def production_problems(env, on_render: bool) -> list:
             "persistent disk (e.g. mounted at /var/data) and set DATABASE_PATH=/var/data/phoenixmarket.db. "
             "(ALLOW_EPHEMERAL_DATABASE=1 overrides this for throw-away test services only.)"
         )
-    if len(env.get("ADMIN_PASSWORD") or "") < MIN_ADMIN_PASSWORD_LENGTH:
+    admin_password = env.get("ADMIN_PASSWORD") or ""
+    if len(admin_password) < MIN_ADMIN_PASSWORD_LENGTH or "change-me" in admin_password.lower():
         problems.append(
             f"ADMIN_PASSWORD must be at least {MIN_ADMIN_PASSWORD_LENGTH} characters in production."
         )

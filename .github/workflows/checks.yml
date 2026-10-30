@@ -26,7 +26,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Tests
         run: python -m pytest -q -p no:cacheprovider
-      - name: Known vulnerabilities (pip-audit)
-        run: python -m pip_audit -r requirements.txt
+      - name: Known vulnerabilities (pip-audit; the dev file includes requirements.txt)
+        run: python -m pip_audit -r requirements-dev.txt
       - name: Static security scan (bandit)
         run: python -m bandit -q -r app.py wsgi.py services views scripts -s B105

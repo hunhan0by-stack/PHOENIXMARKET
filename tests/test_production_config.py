@@ -38,7 +38,7 @@ def test_short_admin_password_is_refused():
 def test_missing_or_short_secret_key_is_refused_everywhere():
     """Also off Render (FLASK_ENV=production), where the dev default used to apply."""
     for on_render in (True, False):
-        for key in ("", "too-short-secret"):
+        for key in ("", "too-short-secret", "change-me-to-a-long-random-string"):  # .env.example placeholder
             problems = config_checks.production_problems({**GOOD, "SECRET_KEY": key}, on_render=on_render)
             assert len(problems) == 1 and "SECRET_KEY" in problems[0]
 
