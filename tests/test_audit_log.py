@@ -70,7 +70,7 @@ def test_backup_downloads_are_recorded(admin, tmp_path, monkeypatch):
 
 
 def test_security_log_is_admin_only(client, admin):
-    admin.post("/admin/settings", {"itemsatis_redirect_url": "https://itemsatis.test/new"})
+    admin.post("/admin/settings", {"itemsatis_redirect_url": "https://www.itemsatis.com/magaza/phoenixmarket-new"})
     assert "Settings changed" in admin.html("/admin/security")
     assert client.get("/admin/security").headers["Location"].endswith("/admin/login")
 

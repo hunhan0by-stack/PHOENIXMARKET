@@ -7,11 +7,12 @@ from flask import current_app, flash, redirect, render_template, request, url_fo
 
 import services.audit as audit
 import services.delivery as delivery
+import services.itemsatis as itemsatis
 import services.order_fields as order_fields
 import services.store as store
 from services.store import unique_slug
 from services.uploads import InvalidImageError, process_listing_image
-from services.web import SUPPORTED_CURRENCIES, SUPPORTED_LOCALES, is_http_url, tr_msg
+from services.web import SUPPORTED_CURRENCIES, SUPPORTED_LOCALES, tr_msg
 from views.admin.base import bp, LISTING_STATUS_CHOICES, notify_back_in_stock_safely
 
 
@@ -66,7 +67,6 @@ def listings():
     )
 
 
-PAYMENT_URL_MAX = 500
 DELIVERY_HOURS_MAX = 30 * 24
 
 
@@ -75,7 +75,7 @@ def clean_payment_url(raw):
     url = (raw or "").strip()
     if not url:
         return None, None
-    if not is_http_url(url, PAYMENT_URL_MAX):
+    if not itemsatis.is_valid_link(url):
         return None, "flash_payment_url_invalid"
     return url, None
 

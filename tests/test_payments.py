@@ -7,7 +7,7 @@ from app import app
 from tests.helpers import in_app
 
 INSTAGRAM, CANVA = 2, 1
-SITE_LINK = "https://itemsatis.test/shop"
+SITE_LINK = "https://www.itemsatis.com/magaza/phoenixmarket-test"
 LISTING_LINK = "https://www.itemsatis.com/ilan/instagram-takipci"
 PACKAGE_LINK = "https://www.itemsatis.com/ilan/instagram-1k"
 
@@ -156,7 +156,7 @@ def test_package_link_beats_listing_link_and_mixed_carts_get_one_button_each(cli
 
 def test_invalid_links_are_rejected(admin):
     r = set_listing_link(admin, INSTAGRAM, "javascript:alert(1)")
-    assert "must be a full web address" in r.get_data(as_text=True)
+    assert "must start with https://www.itemsatis.com/" in r.get_data(as_text=True)
     assert in_app(store.get_product, INSTAGRAM)["payment_url"] is None
     admin.post(f"/admin/listings/{INSTAGRAM}/packages", {
         "name": "2K", "price": "4.99", "stock": "1", "sort_order": "0", "active": "1",

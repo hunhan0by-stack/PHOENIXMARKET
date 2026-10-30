@@ -9,6 +9,8 @@ import os
 import shutil
 from pathlib import Path
 
+from services.itemsatis import link_problem
+
 MIN_ADMIN_PASSWORD_LENGTH = 12
 # Signs every session cookie: a short or guessable key lets anyone forge a
 # customer session (Render's generateValue produces a long random one)
@@ -38,6 +40,13 @@ def production_problems(env, on_render: bool) -> list:
     if len(admin_password) < MIN_ADMIN_PASSWORD_LENGTH or "change-me" in admin_password.lower():
         problems.append(
             f"ADMIN_PASSWORD must be at least {MIN_ADMIN_PASSWORD_LENGTH} characters in production."
+        )
+    # Customers pay at this address: a typo or look-alike host sends their money elsewhere
+    itemsatis_problem = link_problem(env.get("ITEMSATIS_REDIRECT_URL") or "")
+    if itemsatis_problem:
+        problems.append(
+            "ITEMSATIS_REDIRECT_URL must be an https link on itemsatis.com or www.itemsatis.com "
+            f"(e.g. https://www.itemsatis.com/your-store): {itemsatis_problem}."
         )
     return problems
 

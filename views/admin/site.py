@@ -7,6 +7,7 @@ from flask import abort, current_app, flash, redirect, render_template, request,
 
 import services.audit as audit
 import services.backup as backup
+import services.itemsatis as itemsatis
 import services.legal as legal
 import services.store as store
 from services.web import SUPPORTED_LOCALES, tr_msg
@@ -48,8 +49,8 @@ def settings():
         owner_locale = request.form.get("owner_locale")
         if owner_locale not in SUPPORTED_LOCALES:
             owner_locale = None  # missing or unknown: keep the current language
-        if itemsatis_url and not itemsatis_url.startswith(("http://", "https://")):
-            flash(tr_msg("flash_invalid_url"), "error")
+        if itemsatis_url and not itemsatis.is_valid_link(itemsatis_url):
+            flash(tr_msg("flash_payment_url_invalid"), "error")
             return redirect(url_for("admin.settings"))
 
         cur = store.load_site_settings(
@@ -62,7 +63,7 @@ def settings():
         merged_itemsatis = itemsatis_url or cur.get("itemsatis_redirect_url", "")
 
         store.save_site_settings(merged_itemsatis, merged_email, merged_discord, owner_locale)
-        if merged_itemsatis:
+        if itemsatis.is_valid_link(merged_itemsatis):
             current_app.config["ITEMSATIS_REDIRECT_URL"] = merged_itemsatis
         # The payment link decides where customers send money: worth an entry
         audit.admin_event("settings_changed")

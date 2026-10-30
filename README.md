@@ -112,7 +112,7 @@ tailwindcss -c tailwind.config.js -i static/css/input.css -o static/css/app.css 
 | Variable | Purpose |
 |---|---|
 | `SECRET_KEY` | Session signing key. **Required on Render.** |
-| `ITEMSATIS_REDIRECT_URL` | Where customers pay after checkout. **Required on Render.** |
+| `ITEMSATIS_REDIRECT_URL` | Where customers pay after checkout. **Required in production**, and must be an `https://` link on `itemsatis.com` or `www.itemsatis.com` (the same check applies to every itemsatis link saved in the admin panel; `services/itemsatis.py`). |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Admin login. **Required in production.** |
 | `DATABASE_PATH` | SQLite file (default `data/phoenixmarket.db`). |
 | `UPLOAD_DIR` | Listing images (default `static/uploads`), served from `/uploads/`. |
@@ -143,6 +143,9 @@ See `.env.example` for a template.
 - **Keep one worker:** rate limits are kept in process memory.
 - Schema changes are applied automatically and non-destructively at start-up
   (`services/database.py`: new tables are created, missing columns added).
+- **itemsatis links:** a saved link that fails the check (e.g. saved by an older
+  version) is never shown to customers and is not deleted; the log names it at
+  start-up. `flask --app app check-payment-links` lists them (changes nothing).
 - **Lost the phone with the admin's authenticator app?** In a Render shell run
   `flask --app app disable-admin-2fa`, sign in with the password and set
   two-step sign-in up again.

@@ -21,7 +21,7 @@ os.environ.update(
         "SECRET_KEY": "test-secret",
         "ADMIN_USERNAME": "admin",
         "ADMIN_PASSWORD": "admin-pass",
-        "ITEMSATIS_REDIRECT_URL": "https://itemsatis.test/shop",
+        "ITEMSATIS_REDIRECT_URL": "https://www.itemsatis.com/magaza/phoenixmarket-test",
         # Offline exchange rates: the static fallback is used immediately.
         "EXCHANGE_RATE_API_URL": "http://127.0.0.1:9/offline",
         "EXCHANGE_RATE_REQUEST_TIMEOUT": "0.1",

@@ -15,6 +15,7 @@ GOOD = {
     "DATABASE_PATH": "/var/data/phoenixmarket.db",
     "ADMIN_PASSWORD": "a-long-admin-pass",
     "SECRET_KEY": "x" * 48,
+    "ITEMSATIS_REDIRECT_URL": "https://www.itemsatis.com/magaza/phoenixmarket",
 }
 
 

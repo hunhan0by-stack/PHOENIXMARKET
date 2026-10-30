@@ -12,7 +12,7 @@ from services.ratelimit import RateLimiter
 import services.store as store
 
 CSRF_TOKEN = "test-csrf-token"
-ITEMSATIS_URL = "https://itemsatis.test/shop"
+ITEMSATIS_URL = "https://www.itemsatis.com/magaza/phoenixmarket-test"
 ADMIN_LOGIN = {"username": "admin", "password": "admin-pass"}
 
 app.config["TESTING"] = True

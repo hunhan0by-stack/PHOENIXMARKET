@@ -119,9 +119,9 @@ def test_category_rename_follows_listings(admin, client):
 
 def test_settings_validate_url_and_feed_homepage(admin, client):
     admin.post("/admin/settings", {"itemsatis_redirect_url": "javascript:alert(1)", "support_email": "", "support_discord": ""})
-    assert any("http://" in m for m in admin.flashes())
+    assert any("https://www.itemsatis.com/" in m for m in admin.flashes())
     admin.clear_flashes()
-    admin.post("/admin/settings", {"itemsatis_redirect_url": "https://itemsatis.example/shop", "support_email": "help@pm.test", "support_discord": "pm#1234"})
+    admin.post("/admin/settings", {"itemsatis_redirect_url": "https://www.itemsatis.com/magaza/pm", "support_email": "help@pm.test", "support_discord": "pm#1234"})
     html = client.html("/")
     assert "help@pm.test" in html and "pm#1234" in html
 

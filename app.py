@@ -17,11 +17,13 @@ import services.config as config_checks
 from services.currency import format_amount, format_price, format_usd
 import services.delivery as delivery
 from services.database import init_app as register_db, init_schema
+import services.itemsatis as itemsatis
 from services.listing import (
     get_display_price,
     format_product_price,
     get_listing_language_badge,
 )
+import services.payments as payments
 import services.store as store
 import services.totp as totp
 from services.translations import t as translate
@@ -78,7 +80,7 @@ if os.getenv("RENDER"):
         )
 else:
     secret_key = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
-    itemsatis_url = os.getenv("ITEMSATIS_REDIRECT_URL", "https://example.com/itemsatis")
+    itemsatis_url = os.getenv("ITEMSATIS_REDIRECT_URL", "https://www.itemsatis.com/")
 
 app.config["SECRET_KEY"] = secret_key
 app.config["ITEMSATIS_REDIRECT_URL"] = itemsatis_url
@@ -170,8 +172,21 @@ with app.app_context():
         "contact@phoenixmarket.example",
         "YourDiscordTag#0000",
     )
-    if _persisted.get("itemsatis_redirect_url"):
-        app.config["ITEMSATIS_REDIRECT_URL"] = _persisted["itemsatis_redirect_url"]
+    _saved_link = _persisted.get("itemsatis_redirect_url")
+    if _saved_link and itemsatis.is_valid_link(_saved_link):
+        app.config["ITEMSATIS_REDIRECT_URL"] = _saved_link
+    elif _saved_link:
+        # Kept in the database (nothing is deleted); the admin corrects it under Settings
+        app.logger.warning(
+            "The saved site-wide itemsatis link is not used (%s); ITEMSATIS_REDIRECT_URL applies "
+            "until it is corrected under Admin → Settings.", itemsatis.link_problem(_saved_link)
+        )
+    _bad_links = payments.saved_link_problems()
+    if _bad_links:
+        app.logger.warning(
+            "%d saved itemsatis link(s) fail the safety check and are not shown to customers. "
+            "List them with: flask --app app check-payment-links", len(_bad_links)
+        )
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
@@ -342,6 +357,18 @@ def housekeeping():
 def backup_command():
     """Write a database backup now (e.g. from a Render shell): flask --app app backup"""
     print(backup.create_backup())
+
+
+@app.cli.command("check-payment-links")
+def check_payment_links_command():
+    """List saved itemsatis links that fail the safety check (changes nothing): flask --app app check-payment-links"""
+    found = payments.saved_link_problems()
+    for item in found:
+        print(f"{item['where']}: {item['problem']} – {item['url']}")
+    if found:
+        print(f"{len(found)} link(s) need correcting in the admin panel. Nothing was changed.")
+        raise SystemExit(1)
+    print("All saved itemsatis links pass the check.")
 
 
 @app.cli.command("disable-admin-2fa")

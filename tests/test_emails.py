@@ -62,7 +62,7 @@ def test_checkout_logs_confirmation_in_customer_language(make_client):
     assert email["status"] == "logged" and email["to_address"] == "buyer@x.com"
     assert email["subject"] == f"PHOENIXMARKET siparişiniz #{order['id']}"
     assert f"http://localhost/track/{order['tracking_token']}" in email["body_text"]
-    assert "https://itemsatis.test/shop" in email["body_text"]
+    assert "https://www.itemsatis.com/magaza/phoenixmarket-test" in email["body_text"]
     assert "Instagram Followers" in email["body_html"]
 
 
