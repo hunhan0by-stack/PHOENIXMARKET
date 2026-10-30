@@ -2,6 +2,8 @@
 Public storefront: home, catalog, product pages, search, categories, contact,
 locale/currency switchers, uploads, sitemap and health check.
 """
+import re
+
 from flask import (
     Blueprint,
     abort,
@@ -43,6 +45,9 @@ from services.web import (
 )
 
 bp = Blueprint("shop", __name__)
+
+# Listing images as saved by services.uploads (random hex name) or by older versions
+UPLOAD_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,150}\.(?:jpe?g|png|webp|gif)", re.IGNORECASE)
 
 
 @bp.route("/")
@@ -418,7 +423,13 @@ def set_currency(currency):
 
 @bp.route("/uploads/<path:filename>")
 def uploaded_file(filename):
-    """Serve listing images from UPLOAD_FOLDER (may live outside static/)."""
+    """Serve listing images from UPLOAD_FOLDER (may live outside static/).
+
+    Only plain image file names: even if UPLOAD_DIR were pointed at the data
+    folder by mistake, a database, backup or anything else is never served.
+    """
+    if not UPLOAD_NAME_RE.fullmatch(filename):
+        abort(404)
     return send_from_directory(upload_folder(), filename, max_age=7 * 24 * 3600)
 
 
@@ -496,5 +507,15 @@ def robots_txt():
 
 @bp.route("/health")
 def health():
-    """Lightweight health check; skip analytics."""
+    """Health check for Render: the app answers and its database can be read.
+
+    A broken or missing database (e.g. the disk did not mount) reports 503, so
+    Render keeps the previous deploy or restarts the service. No details are
+    shown; the cause is logged.
+    """
+    try:
+        store.get_db().execute("SELECT 1 FROM app_config LIMIT 1").fetchall()
+    except Exception:  # noqa: BLE001 - any database problem makes the service unhealthy
+        current_app.logger.exception("Health check: database unavailable")
+        return jsonify({"status": "error"}), 503
     return jsonify({"status": "ok"}), 200

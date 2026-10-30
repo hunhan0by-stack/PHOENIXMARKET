@@ -43,11 +43,19 @@ def get_user_by_email(email: str):
 
 
 def update_user_password(user_id: int, password_hash: str) -> None:
-    """Set a new password; bumping session_version signs out every other session."""
+    """Set a new password; bumping session_version signs out every other session.
+
+    Open reset links stop working too: a link obtained before the change (e.g.
+    from a mailbox that was compromised) must not undo it.
+    """
     db = get_db()
     db.execute(
         "UPDATE users SET password_hash = ?, session_version = session_version + 1 WHERE id = ?",
         (password_hash, user_id),
+    )
+    db.execute(
+        "UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+        (datetime.now(timezone.utc).isoformat(), user_id),
     )
     db.commit()
 

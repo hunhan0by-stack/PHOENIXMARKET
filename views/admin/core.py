@@ -8,11 +8,12 @@ from flask import current_app, flash, redirect, render_template, request, sessio
 
 import services.audit as audit
 import services.backup as backup
+import services.config as config_checks
 import services.legal as legal
 import services.store as store
 import services.totp as totp
 from services.web import client_ip, is_admin, login_admin, logout_admin, refresh_admin_epoch, tr_msg
-from views.admin.base import admin_login_limiter, bp
+from views.admin.base import GLOBAL_2FA_KEY, admin_2fa_global_limiter, admin_login_limiter, bp
 
 # Password accepted, waiting for the authenticator code (time it was accepted)
 PENDING_2FA_KEY = "admin_2fa_pending"
@@ -73,7 +74,10 @@ def login_verify():
         return redirect(url_for("admin.login"))
     if request.method == "POST":
         limit_key = client_ip()
-        wait = admin_login_limiter.retry_after(limit_key)
+        wait = max(
+            admin_login_limiter.retry_after(limit_key),
+            admin_2fa_global_limiter.retry_after(GLOBAL_2FA_KEY),
+        )
         if wait:
             flash(tr_msg("flash_too_many_attempts", minutes=(wait + 59) // 60), "error")
             return render_template("admin_login_verify.html"), 429
@@ -81,6 +85,9 @@ def login_verify():
             admin_login_limiter.reset(limit_key)
             return sign_in_admin()
         admin_login_limiter.hit(limit_key)
+        # Not reset by a successful sign-in, so an attack in progress cannot
+        # clear it by itself; the admin should change ADMIN_PASSWORD if it trips
+        admin_2fa_global_limiter.hit(GLOBAL_2FA_KEY)
         audit.admin_event("admin_2fa_failed")
         current_app.logger.warning("Failed admin two-step code from %s", limit_key)
         flash(tr_msg("flash_admin_2fa_invalid"), "error")
@@ -131,7 +138,19 @@ def dashboard():
         legal_reviewed=legal.texts_reviewed(),
         two_step_enabled=totp.admin_enabled(),
         storage=current_app.config.get("STORAGE_STATUS") or {},
+        disk_free_mb=low_disk_free_mb(),
     )
+
+
+def low_disk_free_mb():
+    """Free MB on the database disk when it is running low (under 200 MB or 10 %), else None."""
+    space = config_checks.disk_space(current_app.config["DATABASE_PATH"])
+    if not space:
+        return None
+    free, total = space
+    if free < config_checks.LOW_DISK_BYTES or (total and free / total < 0.10):
+        return free // (1024 * 1024)
+    return None
 
 
 @bp.route("/admin/security")

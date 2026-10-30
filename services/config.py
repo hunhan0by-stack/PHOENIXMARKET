@@ -1,19 +1,30 @@
 """
-Production start-up checks and storage status.
+Production start-up checks, storage layout and status.
 
 The app refuses to start with settings that would silently lose data or
 weaken admin access (a crash with a clear message in the Render log beats
 discovering it after the first deploy wiped the orders).
 """
 import os
+import shutil
 from pathlib import Path
 
 MIN_ADMIN_PASSWORD_LENGTH = 12
+# Signs every session cookie: a short or guessable key lets anyone forge a
+# customer session (Render's generateValue produces a long random one)
+MIN_SECRET_KEY_LENGTH = 32
+# Below this the dashboard warns: SQLite cannot write orders on a full disk
+LOW_DISK_BYTES = 200 * 1024 * 1024
 
 
 def production_problems(env, on_render: bool) -> list:
     """Messages for every unsafe production setting in env (a mapping like os.environ)."""
     problems = []
+    if len(env.get("SECRET_KEY") or "") < MIN_SECRET_KEY_LENGTH:
+        problems.append(
+            f"SECRET_KEY must be a random value of at least {MIN_SECRET_KEY_LENGTH} characters in production "
+            "(e.g. python -c \"import secrets; print(secrets.token_urlsafe(48))\")."
+        )
     if on_render and not env.get("DATABASE_PATH") and env.get("ALLOW_EPHEMERAL_DATABASE") != "1":
         problems.append(
             "DATABASE_PATH is not set: the database would live on Render's temporary filesystem "
@@ -26,6 +37,39 @@ def production_problems(env, on_render: bool) -> list:
             f"ADMIN_PASSWORD must be at least {MIN_ADMIN_PASSWORD_LENGTH} characters in production."
         )
     return problems
+
+
+def _inside(path: Path, folder: Path) -> bool:
+    try:
+        path.resolve().relative_to(folder.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def storage_layout_problems(database_path, upload_dir, backup_dir, static_dir) -> list:
+    """The database and its backups must never sit in a folder the site serves files from."""
+    problems = []
+    served = [("UPLOAD_DIR", Path(upload_dir)), ("static", Path(static_dir))]
+    private = [("DATABASE_PATH", Path(database_path)), ("BACKUP_DIR", Path(backup_dir))]
+    for private_name, private_path in private:
+        for served_name, served_path in served:
+            if _inside(private_path, served_path):
+                problems.append(
+                    f"{private_name} ({private_path}) is inside {served_name} ({served_path}), which is "
+                    "served to visitors: the database or its backups could be downloaded. Use separate folders, "
+                    "e.g. /var/data/phoenixmarket.db, /var/data/backups and /var/data/uploads."
+                )
+    return problems
+
+
+def disk_space(database_path: str):
+    """(free bytes, total bytes) of the disk holding the database, or None if it cannot be read."""
+    try:
+        usage = shutil.disk_usage(Path(database_path).resolve().parent)
+    except OSError:
+        return None
+    return usage.free, usage.total
 
 
 def trusted_hosts(raw: str | None):

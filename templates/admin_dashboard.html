@@ -76,6 +76,12 @@
       </div>
     {% endif %}
 
+    {% if disk_free_mb is not none %}
+      <div class="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="alert">
+        {{ t('adm_disk_low').format(free=disk_free_mb) }}
+      </div>
+    {% endif %}
+
     {% if not two_step_enabled %}
       <div class="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs text-amber-200" role="status">
         <span>{{ t('adm_2fa_reminder') }}</span>

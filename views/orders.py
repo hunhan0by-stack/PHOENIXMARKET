@@ -372,7 +372,9 @@ def cancel(token):
     order = store.get_order_by_tracking_token(token, include_items=True)
     if not order:
         abort(404)
-    if order["fulfillment_status"] != "pending":
+    # Once details were handed over (e.g. delivered before the payment was
+    # confirmed) the customer cannot take back the order and keep them
+    if order["fulfillment_status"] != "pending" or store.list_deliveries(order["id"]):
         flash(tr_msg("flash_order_cancel_not_allowed"), "error")
         return redirect(url_for("orders.track", token=token))
     try:

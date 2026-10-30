@@ -592,13 +592,18 @@ def update_order_fulfillment(
 
 
 def list_overdue_unpaid_orders(now: datetime, limit: int = 50) -> list:
-    """Pending orders whose payment deadline has passed, oldest deadline first."""
+    """Pending orders whose payment deadline has passed, oldest deadline first.
+
+    Orders that already received a delivery are left to the admin: cancelling
+    them automatically would return stock that was handed over.
+    """
     db = get_db()
     rows = db.execute(
         """
         SELECT * FROM orders
         WHERE fulfillment_status = 'pending' AND paid_at IS NULL
           AND payment_due_at IS NOT NULL AND payment_due_at <= ?
+          AND NOT EXISTS (SELECT 1 FROM order_deliveries d WHERE d.order_id = orders.id)
         ORDER BY payment_due_at ASC, id ASC
         LIMIT ?
         """,

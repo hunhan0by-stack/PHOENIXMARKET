@@ -1,5 +1,7 @@
 """Production start-up checks, storage status and host handling behind the proxy."""
 import re
+import sqlite3
+from pathlib import Path
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -9,7 +11,11 @@ import services.config as config_checks
 import services.store as store
 from tests.helpers import in_app
 
-GOOD = {"DATABASE_PATH": "/var/data/phoenixmarket.db", "ADMIN_PASSWORD": "a-long-admin-pass"}
+GOOD = {
+    "DATABASE_PATH": "/var/data/phoenixmarket.db",
+    "ADMIN_PASSWORD": "a-long-admin-pass",
+    "SECRET_KEY": "x" * 48,
+}
 
 
 def test_render_without_persistent_database_path_is_refused():
@@ -27,6 +33,56 @@ def test_short_admin_password_is_refused():
     problems = config_checks.production_problems({**GOOD, "ADMIN_PASSWORD": "short-pass"}, on_render=True)
     assert problems and "ADMIN_PASSWORD" in problems[0]
     assert config_checks.production_problems(GOOD, on_render=True) == []
+
+
+def test_missing_or_short_secret_key_is_refused_everywhere():
+    """Also off Render (FLASK_ENV=production), where the dev default used to apply."""
+    for on_render in (True, False):
+        for key in ("", "too-short-secret"):
+            problems = config_checks.production_problems({**GOOD, "SECRET_KEY": key}, on_render=on_render)
+            assert len(problems) == 1 and "SECRET_KEY" in problems[0]
+
+
+def test_database_and_backups_never_inside_served_folders(tmp_path):
+    data, uploads, static = tmp_path / "data", tmp_path / "uploads", tmp_path / "static"
+    assert config_checks.storage_layout_problems(data / "p.db", uploads, data / "backups", static) == []
+    problems = config_checks.storage_layout_problems(uploads / "p.db", uploads, uploads / "backups", static)
+    assert len(problems) == 2 and "DATABASE_PATH" in problems[0] and "BACKUP_DIR" in problems[1]
+    assert config_checks.storage_layout_problems(data / "p.db", uploads, static / "b", static)
+
+
+def test_misplaced_upload_folder_stops_start_up(tmp_path):
+    """The real start-up refuses a layout that would serve the database (separate process)."""
+    import os
+    import subprocess
+    import sys
+
+    env = {**os.environ, "DATABASE_PATH": str(tmp_path / "phoenixmarket.db"), "UPLOAD_DIR": str(tmp_path)}
+    result = subprocess.run(
+        [sys.executable, "-c", "import app"], cwd=str(Path(app_module.__file__).parent),
+        env=env, capture_output=True, text=True, timeout=120,
+    )
+    assert result.returncode != 0 and "Unsafe storage layout" in result.stderr
+
+
+def test_disk_space_warning(admin, monkeypatch):
+    monkeypatch.setattr(config_checks, "disk_space", lambda _p: (50 * 1024 * 1024, 1000 * 1024 * 1024))
+    assert "Low disk space: 50 MB free" in admin.html("/admin/dashboard")
+    monkeypatch.setattr(config_checks, "disk_space", lambda _p: (800 * 1024 * 1024, 1000 * 1024 * 1024))
+    assert "Low disk space" not in admin.html("/admin/dashboard")
+
+
+def test_health_reports_a_broken_database(client, monkeypatch):
+    assert client.get("/health").get_json() == {"status": "ok"}
+
+    class Broken:
+        def execute(self, *_a):
+            raise sqlite3.OperationalError("disk I/O error at /var/data/phoenixmarket.db")
+
+    monkeypatch.setattr(store, "get_db", lambda: Broken())
+    r = client.get("/health")
+    assert r.status_code == 503 and r.get_json() == {"status": "error"}
+    assert "phoenixmarket.db" not in r.get_data(as_text=True)
 
 
 def test_trusted_hosts_parsing():

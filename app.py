@@ -120,6 +120,14 @@ app.config["DEFAULT_LOCALE"] = (os.getenv("DEFAULT_LOCALE") or "en").strip().low
 
 # Daily database copies; default is a "backups" folder next to the database
 app.config["BACKUP_DIR"] = os.getenv("BACKUP_DIR") or None
+_layout_problems = config_checks.storage_layout_problems(
+    app.config["DATABASE_PATH"],
+    app.config["UPLOAD_FOLDER"],
+    app.config["BACKUP_DIR"] or str(Path(app.config["DATABASE_PATH"]).parent / "backups"),
+    app.static_folder,
+)
+if _layout_problems:
+    raise RuntimeError("Unsafe storage layout:\n- " + "\n- ".join(_layout_problems))
 
 # Hours a customer has to pay before an unpaid order is cancelled and its
 # stock released; 0 turns automatic cancellation off.

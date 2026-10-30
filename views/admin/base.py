@@ -20,6 +20,11 @@ PUBLIC_ENDPOINTS = {"admin.login", "admin.login_verify", "admin.logout"}
 
 # Brute-force protection for the admin login (per client IP)
 admin_login_limiter = RateLimiter(max_hits=5, window_seconds=15 * 60)
+# Wrong two-step codes from all addresses together. Reaching the code step
+# means the password is known; per-IP limits alone would let many addresses
+# guess the 6 digits (about one in 333,000 per try) within a day.
+admin_2fa_global_limiter = RateLimiter(max_hits=20, window_seconds=15 * 60)
+GLOBAL_2FA_KEY = "all"
 
 
 @bp.before_request

@@ -203,6 +203,30 @@ def confirm_payment(order_id):
     return redirect(url_for("admin.order_detail", order_id=order_id))
 
 
+@bp.route("/admin/orders/<int:order_id>/auto-deliver", methods=["POST"])
+def retry_auto_delivery(order_id):
+    """Hand out codes for a paid order again, e.g. after adding codes when they ran short.
+
+    Same all-or-nothing, once-per-order allocation as on payment confirmation.
+    """
+    order = store.get_order_by_id(order_id, include_items=False)
+    if not order:
+        flash(tr_msg("flash_order_not_found"), "error")
+        return redirect(url_for("admin.orders"))
+    back = url_for("admin.order_detail", order_id=order_id) + "#delivery"
+    if not order["paid_at"] or order["fulfillment_status"] == "cancelled":
+        flash(tr_msg("flash_auto_delivery_needs_payment"), "error")
+        return redirect(back)
+    try:
+        message, params = delivery.auto_deliver(order_id, bool(request.form.get("notify_customer")))
+    except Exception:  # noqa: BLE001 - nothing is handed out when the transaction fails
+        current_app.logger.exception("Automatic delivery retry failed for order %s", order_id)
+        message, params = "flash_auto_delivery_failed", {}
+    message = message or "flash_auto_delivery_nothing"
+    flash(tr_msg(message, **params), "error" if message.endswith(("_short", "_failed")) else "success")
+    return redirect(back)
+
+
 @bp.route("/admin/orders/<int:order_id>/payment/undo", methods=["POST"])
 def undo_payment(order_id):
     if store.undo_payment(order_id):
