@@ -10,6 +10,7 @@ import services.audit as audit
 import services.backup as backup
 import services.config as config_checks
 import services.legal as legal
+import services.sensitive_urls as sensitive_urls
 import services.store as store
 import services.totp as totp
 from services.web import client_ip, is_admin, login_admin, logout_admin, refresh_admin_epoch, tr_msg
@@ -109,6 +110,19 @@ def logout():
     return redirect(url_for("shop.index"))
 
 
+def mask_visit_paths(analytics):
+    """Page views recorded before secret parts were masked (only on screen; the rows stay as they are)."""
+    top_pages = {}
+    for path, hits in analytics["top_pages"]:
+        path = sensitive_urls.mask(path)
+        top_pages[path] = top_pages.get(path, 0) + hits
+    return {
+        **analytics,
+        "recent_visits": [{**v, "path": sensitive_urls.mask(v["path"])} for v in analytics["recent_visits"]],
+        "top_pages": sorted(top_pages.items(), key=lambda item: (-item[1], item[0])),
+    }
+
+
 @bp.route("/admin/dashboard")
 def dashboard():
     all_products = store.list_all_products()
@@ -116,7 +130,7 @@ def dashboard():
     active_products = len([p for p in all_products if p.get("status") == "active"])
     inactive_products = total_products - active_products
     total_orders = store.count_orders()
-    analytics = store.get_analytics_for_admin()
+    analytics = mask_visit_paths(store.get_analytics_for_admin())
     return render_template(
         "admin_dashboard.html",
         products=all_products,

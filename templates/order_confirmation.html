@@ -34,7 +34,7 @@
         {{ t('order_pay_with_number_after') }}
       </p>
       {% if payment_links|length == 1 %}
-        <a href="{{ payment_links[0].url }}" rel="noopener" class="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-6 py-3 text-sm font-semibold text-black hover:opacity-95">
+        <a href="{{ payment_links[0].url }}" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-6 py-3 text-sm font-semibold text-black hover:opacity-95">
           {{ site_content.checkout_button_label }}
         </a>
       {% else %}
@@ -42,7 +42,7 @@
         <ul class="space-y-2">
           {% for link in payment_links %}
             <li>
-              <a href="{{ link.url }}" rel="noopener" class="flex items-center justify-between gap-3 rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-5 py-2.5 text-sm font-semibold text-black hover:opacity-95">
+              <a href="{{ link.url }}" rel="noopener noreferrer" class="flex items-center justify-between gap-3 rounded-full bg-gradient-to-r from-brandRed to-brandOrange px-5 py-2.5 text-sm font-semibold text-black hover:opacity-95">
                 <span class="truncate">{{ link.names|join(', ') }}</span>
                 <span aria-hidden="true">→</span>
               </a>

@@ -24,6 +24,7 @@ from services.listing import (
     get_listing_language_badge,
 )
 import services.payments as payments
+import services.sensitive_urls as sensitive_urls
 import services.store as store
 import services.totp as totp
 from services.translations import t as translate
@@ -57,7 +58,16 @@ from views.api import chat_api_key
 
 load_dotenv()
 
-app = Flask(__name__)
+
+class PhoenixMarket(Flask):
+    def log_exception(self, exc_info):
+        """Flask's own message, with secret parts of the path masked (tracking / reset links)."""
+        self.logger.error(
+            f"Exception on {sensitive_urls.mask(request.path)} [{request.method}]", exc_info=exc_info
+        )
+
+
+app = PhoenixMarket(__name__)
 
 # -----------------------------------------------------------------------------
 # Base configuration – environment driven for production readiness
@@ -385,6 +395,8 @@ def record_visit():
 
     Skipped: assets, API, health/SEO files, the admin panel, language/currency
     switch redirects and the admin's own browsing (none are customer visits).
+    Tracking and password-reset links are stored without their secret part
+    (/track/<token>), see services/sensitive_urls.py.
     """
     path = request.path
     if path.startswith(("/static/", "/uploads/", "/api/", "/admin", "/set-locale/", "/set-currency/")) or path in (
@@ -400,7 +412,7 @@ def record_visit():
     try:
         # Personal data kept to a minimum: no IP, no full user agent
         day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        store.record_visit(path, visitor_id(client_ip(), day), store.browser_family(ua))
+        store.record_visit(sensitive_urls.mask(path), visitor_id(client_ip(), day), store.browser_family(ua))
     except Exception:  # noqa: BLE001 - analytics never breaks a page
         app.logger.exception("Recording a visit failed")
 
@@ -424,6 +436,13 @@ def security_headers(response):
     if request.path.startswith("/static/") and response.status_code in (200, 304):
         # Versioned URLs never change content; others are revalidated daily
         response.headers["Cache-Control"] = STATIC_IMMUTABLE if request.args.get("v") else STATIC_DEFAULT
+    elif sensitive_urls.is_sensitive(request.path):
+        # Tracking / password-reset link: never cached or indexed, and the full
+        # address goes only to this site as Referer (language switch), never to
+        # another site such as itemsatis
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "same-origin"
+        response.headers["X-Robots-Tag"] = "noindex"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

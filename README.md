@@ -47,6 +47,9 @@ deployed on Render with gunicorn.
   is the owner's own confirmation, not a guarantee of legal compliance.
 - **Privacy-friendly analytics:** no IP addresses or cookies; daily-rotating
   anonymous visitor ids, bots excluded, page views kept 90 days.
+  Tracking and password-reset links are recorded without their secret part
+  (`/track/<token>`); their pages are sent with `no-store`, `noindex` and a
+  Referer limited to this site (`services/sensitive_urls.py`).
 - **Email:** every message is stored in an outbox; sent via SMTP when configured.
   The owner is notified of new orders and support messages.
 - **Languages / currencies:** English and Turkish UI; prices in TRY, USD or EUR.
@@ -141,6 +144,8 @@ See `.env.example` for a template.
   a mounted disk. Verify the disk as described in
   [docs/DATA_BACKUP_RECOVERY.md](docs/DATA_BACKUP_RECOVERY.md).
 - **Keep one worker:** rate limits are kept in process memory.
+- **Keep gunicorn's access log off** (the default; no `--access-logfile`): it would
+  write every tracking and password-reset link in full.
 - Schema changes are applied automatically and non-destructively at start-up
   (`services/database.py`: new tables are created, missing columns added).
 - **itemsatis links:** a saved link that fails the check (e.g. saved by an older

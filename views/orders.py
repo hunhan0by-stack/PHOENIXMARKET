@@ -337,7 +337,6 @@ def checkout():
         session["cart"] = {}
         session.pop(COUPON_SESSION_KEY, None)
         session["last_order_id"] = order_id
-        session["last_tracking_token"] = tracking_token
         return redirect(url_for("orders.confirmation", token=tracking_token))
 
     return render_template("checkout.html", items=items, form=form, **totals)
