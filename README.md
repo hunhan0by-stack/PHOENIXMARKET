@@ -78,6 +78,25 @@ The first start creates `data/phoenixmarket.db` and seeds a small demo catalog.
 Local admin login (only when no production environment is detected):
 `phoenixmarket` / `admin` unless `ADMIN_USERNAME` / `ADMIN_PASSWORD` are set.
 
+## Setting up on another computer
+
+The repository holds the code only. Customer data, secrets and local tools are
+never committed (see `.gitignore`): `data/` (database), `backups/`,
+`static/uploads/`, `.env` and `.venv/`.
+
+1. Install [Git](https://git-scm.com/) and Python 3.11 or newer.
+2. Clone the private repository and enter it:
+   ```bash
+   git clone https://github.com/<your-user>/<your-repo>.git
+   cd <your-repo>
+   ```
+3. Follow [Running locally](#running-locally) above. Without a database the
+   app starts with the demo catalog.
+4. Optional: to keep your local data, copy `data/` (and `static/uploads/` if it
+   has images) from the old computer by USB or another private channel. Never
+   upload these folders to GitHub or a public place: they contain customer data.
+5. Run `python -m pytest` to confirm everything works.
+
 ## Tests
 
 ```bash
