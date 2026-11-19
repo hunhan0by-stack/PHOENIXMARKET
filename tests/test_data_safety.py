@@ -34,7 +34,7 @@ def table_counts(path) -> dict:
 
 
 def test_backup_restores_into_a_working_shop(client, admin, backup_folder, tmp_path, monkeypatch):
-    """The restore procedure of docs/DATA_BACKUP_RECOVERY.md, on an isolated copy."""
+    """The restore procedure in the README ("Backups"), on an isolated copy."""
     client.post("/cart/add/1")
     client.post("/checkout", {"full_name": "Restore Test", "email": "restore@x.com"})
     admin.post("/admin/listings/1/codes", {"codes": "RESTORE-1\nRESTORE-2"})

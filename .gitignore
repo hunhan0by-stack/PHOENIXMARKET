@@ -32,6 +32,11 @@ static/uploads/
 # Old copy of the project kept locally for reference only
 PHOENIXMARKETPLACE/
 
+# Internal notes (security audit, incident response, legal gaps, release
+# checklist). This folder is a separate PRIVATE repository and must never be
+# part of this public one.
+private/
+
 # Keys and certificates
 *.pem
 *.key

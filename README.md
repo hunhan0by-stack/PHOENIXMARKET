@@ -53,14 +53,15 @@ deployed on Render with gunicorn.
 - **Email:** every message is stored in an outbox; sent via SMTP when configured.
   The owner is notified of new orders and support messages.
 - **Languages / currencies:** English and Turkish UI; prices in TRY, USD or EUR.
-- **Security:** CSRF protection, rate limits, nonce-based CSP and security headers,
+- **Security:** CSRF protection, rate limits (sign-in per IP and per account,
+  sign-up attempts), a strict Content Security Policy and security headers,
   safe image uploads, open-redirect protection, checkout limits (orders per IP
   and unpaid orders per email). Optional two-step sign-in for the admin
   (authenticator app codes); admin sessions end after 12 idle hours, after 7
   days, or when the admin password or two-step setting changes. A security log
   (Admin → Settings → Two-step sign-in and security log) records sign-ins,
   payments, deliveries, code stock, backups and settings changes without
-  secrets. See [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
+  secrets. To report a vulnerability, see [SECURITY.md](SECURITY.md).
 - **AI support chat (optional):** answers with catalog context when
   `OPENAI_API_KEY` is set; FAQ answers otherwise.
 
@@ -80,21 +81,30 @@ Local admin login (only when no production environment is detected):
 
 ## Setting up on another computer
 
-The repository holds the code only. Customer data, secrets and local tools are
-never committed (see `.gitignore`): `data/` (database), `backups/`,
-`static/uploads/`, `.env` and `.venv/`.
+This repository is public and holds the code only. Nothing private is ever
+committed here (see `.gitignore`):
 
-1. Install [Git](https://git-scm.com/) and Python 3.11 or newer.
-2. Clone the private repository and enter it:
+| What | Where it lives |
+|---|---|
+| Code, templates, tests, this README | this public repository |
+| Internal notes (security audit, incident response, legal gaps, release checklist) | a separate **private** repository, cloned into `private/` |
+| Customer database (`data/`), uploaded images (`static/uploads/`), backups | **never on GitHub**: copied by USB or another private channel |
+| Production secrets (`SECRET_KEY`, admin password, API keys) | only in the hosting provider's environment settings; locally in `.env` |
+
+1. Install [Git](https://git-scm.com/), the [GitHub CLI](https://cli.github.com/)
+   and Python 3.11 or newer.
+2. Clone the code, and the private notes into `private/` (owner only):
    ```bash
-   git clone https://github.com/<your-user>/<your-repo>.git
-   cd <your-repo>
+   gh auth login
+   gh repo clone PHOENIXMARKET
+   cd PHOENIXMARKET
+   gh repo clone PHOENIXMARKET-private private
    ```
 3. Follow [Running locally](#running-locally) above. Without a database the
    app starts with the demo catalog.
-4. Optional: to keep your local data, copy `data/` (and `static/uploads/` if it
-   has images) from the old computer by USB or another private channel. Never
-   upload these folders to GitHub or a public place: they contain customer data.
+4. To keep your data, copy `data/` (and `static/uploads/` if it has images)
+   from the old computer by USB into the project folder. Never upload these
+   folders to GitHub or any public place: they contain customer data.
 5. Run `python -m pytest` to confirm everything works.
 
 ## Tests
@@ -106,8 +116,8 @@ python -m pytest
 Before a release run `.\scripts\check.ps1`: the test suite plus
 `scripts/rehearse_migration.py`, which applies the schema changes to a copy of
 `data/phoenixmarket.db` and smoke-tests the main pages (the original file is
-never opened). The step-by-step launch list (in Turkish) is
-[docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md).
+never opened). The step-by-step launch list is kept with the private notes
+(`private/docs/RELEASE_CHECKLIST.md`).
 
 The suite runs against a throw-away database and upload folder (see
 `tests/conftest.py`); it never touches `data/`.
@@ -160,8 +170,7 @@ See `.env.example` for a template.
   `BACKUP_DIR` on it (paid instance types). On Render the app refuses to start
   without `DATABASE_PATH` or with an `ADMIN_PASSWORD` under 12 characters, and
   the admin dashboard shows a red warning while the database folder is not on
-  a mounted disk. Verify the disk as described in
-  [docs/DATA_BACKUP_RECOVERY.md](docs/DATA_BACKUP_RECOVERY.md).
+  a mounted disk. Verify the disk before the first real order.
 - **Keep one worker:** rate limits are kept in process memory.
 - **Keep gunicorn's access log off** (the default; no `--access-logfile`): it would
   write every tracking and password-reset link in full.
@@ -176,8 +185,9 @@ See `.env.example` for a template.
 
 ## Backups
 
-The full procedure (verifying the Render disk, off-site copies, RPO/RTO,
-restoring) is in [docs/DATA_BACKUP_RECOVERY.md](docs/DATA_BACKUP_RECOVERY.md) (Turkish).
+The owner's detailed procedure (verifying the Render disk, off-site copies,
+recovery targets) is kept with the private notes
+(`private/docs/DATA_BACKUP_RECOVERY.md`). The essentials:
 
 - **Automatic:** once a day the app writes a verified copy of the database
   (SQLite online backup, safe while the shop is running) to `BACKUP_DIR` and
@@ -213,14 +223,15 @@ templates/             Jinja templates (emails in templates/emails/)
 static/                CSS/JS/images
 tests/                 pytest suite
 scripts/               check.ps1 (pre-release checks), rehearse_migration.py
-docs/                  (Turkish) RELEASE_CHECKLIST.md launch steps, SECURITY_AUDIT.md,
-                       DATA_BACKUP_RECOVERY.md, INCIDENT_RESPONSE.md, PRIVACY_COMPLIANCE_GAPS.md
 .github/               Dependabot and the CI checks (tests, pip-audit, bandit)
-data/                  local SQLite database (not for version control)
+data/                  local SQLite database (never committed)
+private/               the owner's private notes: a separate private repository (never committed here)
 ```
 
-`PHOENIXMARKETPLACE/` is an older copy of the project kept for reference; the
-application does not use it.
+## Licence
+
+Copyright © 2026 the owner of this repository. All rights reserved. The code is
+public so it can be read; it is not open source. See [LICENSE](LICENSE).
 
 ## Known limitations
 

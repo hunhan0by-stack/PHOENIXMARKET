@@ -1,6 +1,6 @@
 """
 Security audit log (security_events). Nothing here deletes entries: how long
-they are kept is the owner's decision (see docs/INCIDENT_RESPONSE.md).
+they are kept is the owner's decision.
 """
 from datetime import datetime, timezone
 

@@ -4,7 +4,7 @@ details and the admin's TOTP secret.
 
 PREPARED, NOT ACTIVE. Nothing in the running shop calls this module yet and
 no real record has been encrypted. Turning it on (and migrating existing
-rows) waits for the owner's approval; see docs/SECURITY_AUDIT.md §4 and
+rows) waits for the owner's approval; see
 scripts/rehearse_encryption.py, which tries it on a copy of a database only.
 
 Design

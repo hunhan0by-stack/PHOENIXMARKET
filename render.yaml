@@ -12,7 +12,7 @@
 # uploaded images and the daily backups. The app refuses to start on Render
 # without DATABASE_PATH, and the admin dashboard warns while the database
 # folder is not on a mounted disk. A disk lives in one region and is not an
-# off-site backup: see docs/DATA_BACKUP_RECOVERY.md.
+# off-site backup: download copies regularly (README, "Backups").
 services:
   - type: web
     name: phoenixmarket

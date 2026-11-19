@@ -1,6 +1,6 @@
 """
 Off-site backups: an encrypted copy of a database backup on storage that
-does not share the Render disk (docs/DATA_BACKUP_RECOVERY.md §3.1).
+does not share the Render disk.
 
 PREPARED, NOT ACTIVE. No target is configured and nothing in the running
 shop calls this module; turning it on needs a storage account (R2, B2 or S3)
