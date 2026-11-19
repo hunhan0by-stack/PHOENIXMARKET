@@ -1,6 +1,9 @@
 """CSRF protection, security headers, redirect safety and brute-force limits."""
 import re
 
+import services.store as store
+from tests.helpers import in_app
+
 
 def test_post_without_or_with_wrong_token_is_rejected(client):
     r = client.post("/cart/add/2", csrf=False)
@@ -38,6 +41,40 @@ def test_signin_locks_after_ten_failures_per_ip(make_client):
     r = attacker.signin()
     assert r.status_code == 429 and "Too many attempts" in r.get_data(as_text=True)
     assert make_client(ip="10.66.0.2").signin().status_code == 302
+
+
+def test_signing_in_to_an_own_account_does_not_clear_failed_guesses(make_client):
+    make_client(ip="10.1.0.10").signup(email="victim@x.com")
+    attacker = make_client(ip="10.66.1.1")
+    attacker.signup(email="attacker@x.com")
+    attacker.post("/signout")
+    for _ in range(9):
+        attacker.signin(email="victim@x.com", password="bad-password")
+    assert attacker.signin(email="attacker@x.com").status_code == 302
+    attacker.post("/signout")
+    attacker.signin(email="victim@x.com", password="bad-password")
+    r = attacker.signin(email="victim@x.com")
+    assert r.status_code == 429 and not attacker.session().get("user")
+
+
+def test_signin_locks_an_account_guessed_from_many_ips(make_client):
+    make_client(ip="10.1.0.11").signup(email="target@x.com")
+    make_client(ip="10.1.0.12").signup(email="other@x.com")
+    for n in range(20):
+        make_client(ip=f"10.67.0.{n + 1}").signin(email="target@x.com", password="bad-password")
+    fresh = make_client(ip="10.67.1.1")
+    assert fresh.signin(email="target@x.com").status_code == 429
+    assert fresh.signin(email="other@x.com").status_code == 302
+
+
+def test_signup_counts_attempts_with_registered_emails(make_client):
+    make_client(ip="10.1.0.13").signup(email="taken@x.com")
+    prober = make_client(ip="10.68.0.1")
+    for _ in range(10):
+        r = prober.signup(email="taken@x.com")
+        assert r.status_code == 200
+    r = prober.signup(email="new-account@x.com")
+    assert r.status_code == 429 and in_app(store.get_user_by_email, "new-account@x.com") is None
 
 
 def test_admin_login_locks_after_five_failures(make_client):

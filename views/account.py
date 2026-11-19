@@ -27,10 +27,18 @@ from services.web import (
 
 bp = Blueprint("account", __name__)
 
-# Brute-force protection for customer sign-in (per client IP)
+# Brute-force protection for customer sign-in. Failed attempts are counted per
+# client IP and per account. A successful sign-in clears only that account's
+# count: otherwise an attacker could sign in to their own account between
+# guesses and keep the IP count at zero.
 signin_limiter = RateLimiter(max_hits=10, window_seconds=15 * 60)
+account_signin_limiter = RateLimiter(max_hits=20, window_seconds=60 * 60)
 # Accounts created per client IP and hour (stops scripted sign-up floods)
 signup_limiter = RateLimiter(max_hits=5, window_seconds=60 * 60)
+# Every sign-up attempt that reaches password hashing, including attempts with
+# an email that is already registered: limits checking which emails have an
+# account and the CPU spent on hashing.
+signup_attempt_limiter = RateLimiter(max_hits=10, window_seconds=60 * 60)
 # Password reset emails: per client IP, and per account (MAX_RESETS_PER_HOUR)
 reset_request_limiter = RateLimiter(max_hits=5, window_seconds=60 * 60)
 MAX_RESETS_PER_HOUR = 3
@@ -48,8 +56,11 @@ def signin():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        limit_key = client_ip()
-        wait = signin_limiter.retry_after(limit_key)
+        ip_key = client_ip()
+        wait = max(
+            signin_limiter.retry_after(ip_key),
+            account_signin_limiter.retry_after(email) if email else 0,
+        )
         if wait:
             flash(tr_msg("flash_too_many_attempts", minutes=(wait + 59) // 60), "error")
             return render_template("signin.html", email=email), 429
@@ -61,11 +72,12 @@ def signin():
             user["password_hash"] if user else _DUMMY_PASSWORD_HASH, password
         )
         if user and password_ok:
-            signin_limiter.reset(limit_key)
+            account_signin_limiter.reset(email)
             login_customer(user)
             flash(tr_msg("flash_signed_in"), "success")
             return redirect(url_for("account.profile"))
-        signin_limiter.hit(limit_key)
+        signin_limiter.hit(ip_key)
+        account_signin_limiter.hit(email)
         flash(tr_msg("flash_invalid_credentials"), "error")
         return render_template("signin.html", email=email)
     return render_template("signin.html", email="")
@@ -87,11 +99,15 @@ def signup():
         else:
             problem = password_problem(password, confirm)
         limit_key = client_ip()
-        wait = signup_limiter.retry_after(limit_key)
+        wait = max(
+            signup_limiter.retry_after(limit_key),
+            signup_attempt_limiter.retry_after(limit_key),
+        )
         if not problem and wait:
             flash(tr_msg("flash_too_many_attempts", minutes=(wait + 59) // 60), "error")
             return render_template("signup.html", email=email), 429
         if not problem:
+            signup_attempt_limiter.hit(limit_key)
             user_id = store.create_user(email, generate_password_hash(password))
             if user_id is None:
                 problem = "flash_email_taken"
